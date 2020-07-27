@@ -905,7 +905,7 @@ int del_timer(struct timer_list *timer)
 	int ret = 0;
 
 	timer_stats_timer_clear_start_info(timer);
-	if (timer_pending(timer)) {
+	if (timer_pending(timer)) {		//是否是active状态
 		base = lock_timer_base(timer, &flags);
 		if (timer_pending(timer)) {
 			detach_timer(timer, 1);

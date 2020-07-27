@@ -263,17 +263,20 @@ static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
 	add_timer(&hinfo->timer);
 
+	//所有的hash表最终会添加到每个net的htables下
 	hlist_add_head(&hinfo->node, &hashlimit_net->htables);
 
 	return 0;
 }
 
+//删除所有
 static bool select_all(const struct xt_hashlimit_htable *ht,
 		       const struct dsthash_ent *he)
 {
 	return 1;
 }
 
+//删除超时
 static bool select_gc(const struct xt_hashlimit_htable *ht,
 		      const struct dsthash_ent *he)
 {
@@ -544,6 +547,7 @@ hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		dh->rateinfo.cost = user2credits(hinfo->cfg.avg);
 	} else {
 		/* update expiration timeout */
+		/* 更新超时时间 */
 		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
 		rateinfo_recalc(dh, now);
 	}
@@ -605,6 +609,7 @@ static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 	return 0;
 }
 
+/* 删除表项 */
 static void hashlimit_mt_destroy(const struct xt_mtdtor_param *par)
 {
 	const struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
@@ -753,6 +758,7 @@ static int dl_proc_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
+//TODO: 有时间好好了解了解这个proc文件，这几个函数究竟是做什么用的，分别在什么时候调用
 static const struct file_operations dl_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = dl_proc_open,
@@ -802,6 +808,7 @@ static void __net_exit hashlimit_net_exit(struct net *net)
 	hashlimit_proc_net_exit(net);
 }
 
+/* 创建一个新的net就会执行这一系列操作 */
 static struct pernet_operations hashlimit_net_ops = {
 	.init	= hashlimit_net_init,
 	.exit	= hashlimit_net_exit,
@@ -813,6 +820,7 @@ static int __init hashlimit_mt_init(void)
 {
 	int err;
 
+	//TODO: net namespace 相关
 	err = register_pernet_subsys(&hashlimit_net_ops);
 	if (err < 0)
 		return err;
@@ -844,9 +852,10 @@ static void __exit hashlimit_mt_exit(void)
 	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
 	unregister_pernet_subsys(&hashlimit_net_ops);
 
-	rcu_barrier_bh();
+	rcu_barrier_bh();	//TODO:这个的用处?
 	kmem_cache_destroy(hashlimit_cachep);
 }
 
 module_init(hashlimit_mt_init);
 module_exit(hashlimit_mt_exit);
+

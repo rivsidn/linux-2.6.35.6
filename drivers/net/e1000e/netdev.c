@@ -520,6 +520,7 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
 
+	//申请内存，映射给desc
 	while (cleaned_count--) {
 		skb = buffer_info->skb;
 		if (skb) {
@@ -536,6 +537,7 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 
 		buffer_info->skb = skb;
 map_skb:
+		//申请内存，映射
 		buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 						  adapter->rx_buffer_len,
 						  DMA_FROM_DEVICE);
@@ -743,6 +745,7 @@ check_page:
 
 /**
  * e1000_clean_rx_irq - Send received data up the network stack; legacy
+ * 					  - 将接收的报文发往协议棧；传统模式
  * @adapter: board private structure
  *
  * the return value indicates whether actual cleaning was done, there
@@ -777,7 +780,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		rmb();	/* read descriptor and rx_buffer_info after status DD */
 
 		status = rx_desc->status;
-		skb = buffer_info->skb;
+		skb = buffer_info->skb;		//DMA直接将报文放到buffer_info的skb结构体中
 		buffer_info->skb = NULL;
 
 		prefetch(skb->data - NET_IP_ALIGN);
@@ -2031,6 +2034,7 @@ static int e1000_alloc_ring_dma(struct e1000_adapter *adapter,
 
 /**
  * e1000e_setup_tx_resources - allocate Tx resources (Descriptors)
+ * 							 - 申请发送描述符
  * @adapter: board private structure
  *
  * Return 0 on success, negative on failure
@@ -2066,6 +2070,7 @@ err:
 
 /**
  * e1000e_setup_rx_resources - allocate Rx resources (Descriptors)
+ * 							 - 申请接收描述符
  * @adapter: board private structure
  *
  * Returns 0 on success, negative on failure
@@ -2822,6 +2827,7 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	u64 rdba;
 	u32 rdlen, rctl, rxcsum, ctrl_ext;
 
+	//根据硬件能力配置
 	if (adapter->rx_ps_pages) {
 		/* this is a 32 byte descriptor */
 		rdlen = rx_ring->count *
@@ -2862,6 +2868,8 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	/*
 	 * Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
+	 *
+	 * 将读描述符的基地址写入硬件寄存器中
 	 */
 	rdba = rx_ring->dma;
 	ew32(RDBAL, (rdba & DMA_BIT_MASK(32)));
@@ -3005,6 +3013,7 @@ static void e1000_configure(struct e1000_adapter *adapter)
 	e1000_configure_tx(adapter);
 	e1000_setup_rctl(adapter);
 	e1000_configure_rx(adapter);
+	//alloc_rx_buf 在函数 e1000_configure_rx() 函数中设置
 	adapter->alloc_rx_buf(adapter, e1000_desc_unused(adapter->rx_ring));
 }
 
@@ -5263,6 +5272,9 @@ static void e1000_shutdown(struct pci_dev *pdev)
  * Polling 'interrupt' - used by things like netconsole to send skbs
  * without having to re-enable interrupts. It's not called while
  * the interrupt routine is executing.
+ * 
+ * 该程序不会在中断程序执行时被调用。
+ * 调用该函数时候中断已经关闭了，换句话说调用该函数的时候都需要关中断
  */
 static void e1000_netpoll(struct net_device *netdev)
 {

@@ -239,6 +239,11 @@ out_unlock:
 
 #else /* !CONFIG_SPARSE_IRQ */
 
+/** 
+ * CPU总共支持256个中断向量，还有独占一个中断向量的情况;
+ * 中断向量太少，不能满足需求，就针对每个中断向量创建另一个队列，
+ * 该irq_dest就是挂在中断向量下的队列。
+ */
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
 		.status = IRQ_DISABLED,

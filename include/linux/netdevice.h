@@ -400,7 +400,7 @@ static inline int napi_disable_pending(struct napi_struct *n)
 static inline int napi_schedule_prep(struct napi_struct *n)
 {
 	return !napi_disable_pending(n) &&
-		!test_and_set_bit(NAPI_STATE_SCHED, &n->state);
+		!test_and_set_bit(NAPI_STATE_SCHED, &n->state);	//此处将NAPI_STATE_SCHED 重新设置
 }
 
 /**
@@ -461,12 +461,14 @@ static inline void napi_enable(struct napi_struct *n)
 {
 	BUG_ON(!test_bit(NAPI_STATE_SCHED, &n->state));
 	smp_mb__before_clear_bit();
+	//此处将 NAPI_STATE_SCHED 标识位清空了
 	clear_bit(NAPI_STATE_SCHED, &n->state);
 }
 
 #ifdef CONFIG_SMP
 /**
  *	napi_synchronize - wait until NAPI is not running
+ *					 - 等待NAPI结束执行
  *	@n: napi context
  *
  * Wait until NAPI is done being scheduled on this context.

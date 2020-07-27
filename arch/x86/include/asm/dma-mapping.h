@@ -119,6 +119,7 @@ static inline gfp_t dma_alloc_coherent_gfp_flags(struct device *dev, gfp_t gfp)
        return gfp;
 }
 
+/* 申请一块size大小的内存，返回虚拟地址，dma_handle保存物理地址 */
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp)

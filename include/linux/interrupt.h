@@ -104,6 +104,7 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * @name:	name of the device
  * @dev_id:	cookie to identify the device
  * @next:	pointer to the next irqaction for shared interrupts
+ * 			指向共享中断的下一个中断处理函数
  * @irq:	interrupt number
  * @dir:	pointer to the proc/irq/NN/name entry
  * @thread_fn:	interupt handler function for threaded interrupts

@@ -134,6 +134,13 @@ static int poll_one_napi(struct netpoll_info *npinfo,
 	/* net_rx_action's ->poll() invocations and our's are
 	 * synchronized by this test which is only made while
 	 * holding the napi->poll_lock.
+	 *
+	 * 在SMP环境下，通过调用napi_schedule_prep() 设置了
+	 * NAPI_STATE_SCHED 标识位，虽然此处已经禁止本地中断，
+	 * 但是不排除有其他CPU执行 NAPI 已经调度结束，导致此时
+	 * 已经不需要继续调度的可能性。
+	 * 获取锁之后就已经不再存在有其他CPU的干扰，此处通过检测该
+	 * 标识位，知道是不是已经被调度。
 	 */
 	if (!test_bit(NAPI_STATE_SCHED, &napi->state))
 		return budget;
@@ -152,12 +159,19 @@ static int poll_one_napi(struct netpoll_info *npinfo,
 	return budget - work;
 }
 
+/**
+ * 是可能运行在中断上下文中，中断处理函数中也可能会调用printk()
+ */
 static void poll_napi(struct net_device *dev)
 {
 	struct napi_struct *napi;
 	int budget = 16;
 
 	list_for_each_entry(napi, &dev->napi_list, dev_list) {
+		/** 
+		 * 判断 poll_owner 是为了防止上层递归调用，但是实际此处
+		 * 只通过 spib_trylock() 判断就是可以的。
+		 */
 		if (napi->poll_owner != smp_processor_id() &&
 		    spin_trylock(&napi->poll_lock)) {
 			budget = poll_one_napi(dev->npinfo, napi, budget);
@@ -174,6 +188,7 @@ static void service_arp_queue(struct netpoll_info *npi)
 	if (npi) {
 		struct sk_buff *skb;
 
+		//TODO: 何时会将报文放到这个结构体中
 		while ((skb = skb_dequeue(&npi->arp_tx)))
 			arp_reply(skb);
 	}
@@ -191,15 +206,18 @@ void netpoll_poll_dev(struct net_device *dev)
 		return;
 
 	/* Process pending work on NIC */
+	/* 模拟生成中断，调用napi_schedule_prep() 函数 */
 	ops->ndo_poll_controller(dev);
 
 	poll_napi(dev);
 
 	service_arp_queue(dev->npinfo);
 
+	//TODO: 没看懂这个是做什么用的
 	zap_completion_queue();
 }
 
+//调用该函数的时候就已经禁止中断了
 void netpoll_poll(struct netpoll *np)
 {
 	netpoll_poll_dev(np->dev);
@@ -326,6 +344,10 @@ void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 			}
 
 			/* tickle device maybe there is some cleanup */
+			/** 
+			 * 上边尝试获取锁，如果获取不到则可能会循环，循环过程中需要通过
+			 * 调用poll处理报文
+			 */
 			netpoll_poll(np);
 
 			udelay(USEC_PER_POLL);
@@ -338,12 +360,14 @@ void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		local_irq_restore(flags);
 	}
 
+	//没有发送成功将报文放到队列中，后续通过工作队列处理
 	if (status != NETDEV_TX_OK) {
 		skb_queue_tail(&npinfo->txq, skb);
-		schedule_delayed_work(&npinfo->tx_work,0);
+		schedule_delayed_work(&npinfo->tx_work, 0);
 	}
 }
 
+//netconsole 仅用于消息发送
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 {
 	int total_len, eth_len, ip_len, udp_len;
@@ -360,6 +384,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	if (!skb)
 		return;
 
+	//TODO: 这个函数有什么特殊的地方？
 	skb_copy_to_linear_data(skb, msg, len);
 	skb->len += len;
 
@@ -759,11 +784,12 @@ int netpoll_setup(struct netpoll *np)
 		atomic_set(&npinfo->refcnt, 1);
 	} else {
 		npinfo = ndev->npinfo;
-		atomic_inc(&npinfo->refcnt);
+		atomic_inc(&npinfo->refcnt);	//如果存在了则增加引用计数
 	}
 
 	npinfo->netpoll = np;
 
+	//如果网络设备不支持轮询模式则退出
 	if ((ndev->priv_flags & IFF_DISABLE_NETPOLL) ||
 	    !ndev->netdev_ops->ndo_poll_controller) {
 		printk(KERN_ERR "%s: %s doesn't support polling, aborting.\n",
@@ -778,7 +804,7 @@ int netpoll_setup(struct netpoll *np)
 		printk(KERN_INFO "%s: device %s not up yet, forcing it\n",
 		       np->name, np->dev_name);
 
-		rtnl_lock();
+		rtnl_lock();	//TODO:这个锁是做什么用的？此处为什么需要加锁
 		err = dev_open(ndev);
 		rtnl_unlock();
 
@@ -833,19 +859,24 @@ int netpoll_setup(struct netpoll *np)
 	if (np->rx_hook) {
 		spin_lock_irqsave(&npinfo->rx_lock, flags);
 		npinfo->rx_flags |= NETPOLL_RX_ENABLED;
-		list_add_tail(&np->rx, &npinfo->rx_np);
+		list_add_tail(&np->rx, &npinfo->rx_np);		//将np->rx ，加入到npinfo->rx_np 中
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
 
 	/* fill up the skb queue */
 	refill_skbs();
 
+#if 1
+	/* last thing to do is link it to the net device structure */
+	rcu_assign_pointer(ndev->npinfo, npinfo);
+#else
+	/* 这部分代码这样写是没有意义的 */
 	/* last thing to do is link it to the net device structure */
 	ndev->npinfo = npinfo;
 
 	/* avoid racing with NAPI reading npinfo */
 	synchronize_rcu();
-
+#endif
 	return 0;
 
  release:
@@ -932,3 +963,4 @@ EXPORT_SYMBOL(netpoll_cleanup);
 EXPORT_SYMBOL(netpoll_send_udp);
 EXPORT_SYMBOL(netpoll_poll_dev);
 EXPORT_SYMBOL(netpoll_poll);
+

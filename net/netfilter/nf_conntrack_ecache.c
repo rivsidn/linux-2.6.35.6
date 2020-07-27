@@ -34,6 +34,7 @@ EXPORT_SYMBOL_GPL(nf_expect_event_cb);
 
 /* deliver cached events and clear cache entry - must be called with locally
  * disabled softirqs */
+/* 递交缓存的事件、清空缓存条目 */
 void nf_ct_deliver_cached_events(struct nf_conn *ct)
 {
 	unsigned long events;
@@ -64,6 +65,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 		unsigned long missed = e->missed;
 
 		ret = notify->fcn(events | missed, &item);
+		//两种情况会进入到该分支中，下边通过条件判断，方便加锁
 		if (unlikely(ret < 0 || missed)) {
 			spin_lock_bh(&ct->lock);
 			if (ret < 0)
@@ -79,6 +81,8 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
 
+//该函数就只干了一件事，注册钩子函数nf_conntrack_event_cb()
+//只能注册一个钩子函数，如果有重复则将返回busy
 int nf_conntrack_register_notifier(struct nf_ct_event_notifier *new)
 {
 	int ret = 0;
@@ -114,6 +118,7 @@ void nf_conntrack_unregister_notifier(struct nf_ct_event_notifier *new)
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
 
+//同上，也是注册钩子函数，且只能注册一个
 int nf_ct_expect_register_notifier(struct nf_exp_event_notifier *new)
 {
 	int ret = 0;
@@ -261,3 +266,4 @@ void nf_conntrack_ecache_fini(struct net *net)
 	if (net_eq(net, &init_net))
 		nf_ct_extend_unregister(&event_extend);
 }
+

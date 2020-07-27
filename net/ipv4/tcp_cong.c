@@ -19,6 +19,7 @@ static DEFINE_SPINLOCK(tcp_cong_list_lock);
 static LIST_HEAD(tcp_cong_list);
 
 /* Simple linear search, don't expect many entries! */
+/* 通过name 查找拥塞算法 */
 static struct tcp_congestion_ops *tcp_ca_find(const char *name)
 {
 	struct tcp_congestion_ops *e;
@@ -34,6 +35,8 @@ static struct tcp_congestion_ops *tcp_ca_find(const char *name)
 /*
  * Attach new congestion control algorithm to the list
  * of available options.
+ *
+ * 添加拥塞算法到可用链表中，虽然好多可用但是只能选择一种
  */
 int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 {
@@ -69,7 +72,7 @@ EXPORT_SYMBOL_GPL(tcp_register_congestion_control);
 void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 {
 	spin_lock(&tcp_cong_list_lock);
-	list_del_rcu(&ca->list);
+	list_del_rcu(&ca->list);		//TODO:RCU需要深入理解一下
 	spin_unlock(&tcp_cong_list_lock);
 }
 EXPORT_SYMBOL_GPL(tcp_unregister_congestion_control);
@@ -83,6 +86,7 @@ void tcp_init_congestion_control(struct sock *sk)
 	/* if no choice made yet assign the current value set as default */
 	if (icsk->icsk_ca_ops == &tcp_init_congestion_ops) {
 		rcu_read_lock();
+		//依次获取拥塞控制算法,如果找不到则用tcp_init_congestion_ops
 		list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
 			if (try_module_get(ca->owner)) {
 				icsk->icsk_ca_ops = ca;
@@ -99,6 +103,7 @@ void tcp_init_congestion_control(struct sock *sk)
 }
 
 /* Manage refcounts on socket close. */
+/* socket 关闭时候需要减小引用计数 */
 void tcp_cleanup_congestion_control(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -128,7 +133,7 @@ int tcp_set_default_congestion_control(const char *name)
 
 	if (ca) {
 		ca->flags |= TCP_CONG_NON_RESTRICTED;	/* default is always allowed */
-		list_move(&ca->list, &tcp_cong_list);
+		list_move(&ca->list, &tcp_cong_list);	/* 将默认的拥塞管理算法添加到链表头部 */
 		ret = 0;
 	}
 	spin_unlock(&tcp_cong_list_lock);
@@ -139,9 +144,9 @@ int tcp_set_default_congestion_control(const char *name)
 /* Set default value from kernel configuration at bootup */
 static int __init tcp_congestion_default(void)
 {
-	return tcp_set_default_congestion_control(CONFIG_DEFAULT_TCP_CONG);
+	return tcp_set_default_congestion_control(CONFIG_DEFAULT_TCP_CONG);	/* 此处的宏是字符串 */
 }
-late_initcall(tcp_congestion_default);
+late_initcall(tcp_congestion_default);	//TODO: late_initcall
 
 
 /* Build string with list of available congestion control values */
@@ -214,10 +219,12 @@ int tcp_set_allowed_congestion_control(char *val)
 	}
 
 	/* pass 2 clear old values */
+	/* 全部清空了链表中所有条目的标识位 */
 	list_for_each_entry_rcu(ca, &tcp_cong_list, list)
 		ca->flags &= ~TCP_CONG_NON_RESTRICTED;
 
 	/* pass 3 mark as allowed */
+	/* 设置指定条目的标识位 */
 	while ((name = strsep(&val, " ")) && *name) {
 		ca = tcp_ca_find(name);
 		WARN_ON(!ca);
@@ -232,6 +239,7 @@ out:
 
 
 /* Change congestion control for socket */
+/* TODO: 下边的代码暂时没读... */
 int tcp_set_congestion_control(struct sock *sk, const char *name)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);

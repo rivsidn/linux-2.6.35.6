@@ -1577,7 +1577,10 @@ send_now:
 	return 0;
 }
 
-/* Create a new MTU probe if we are ready.
+/* 
+ * Create a new MTU probe if we are ready.
+ * 发送MTU探测报文
+ *
  * MTU probe is regularly attempting to increase the path MTU by
  * deliberately sending larger packets.  This discovers routing
  * changes resulting in larger path MTUs.

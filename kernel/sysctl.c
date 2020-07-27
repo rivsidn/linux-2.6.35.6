@@ -2424,6 +2424,7 @@ static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,
 
 /**
  * proc_dointvec_minmax - read a vector of integers with min/max values
+ * 						- 读取一个vector的整数值，并确保在min/max范围内
  * @table: the sysctl table
  * @write: %TRUE if this is a write to the sysctl file
  * @buffer: the user buffer

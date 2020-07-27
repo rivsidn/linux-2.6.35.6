@@ -483,11 +483,17 @@ void ethtool_ntuple_flush(struct net_device *dev);
  * get_pauseparam: Report pause parameters
  * set_pauseparam: Set pause parameters
  * get_rx_csum: Report whether receive checksums are turned on or off
+ * 				获取接收校验和状态
  * set_rx_csum: Turn receive checksum on or off
+ * 				开启或关闭接收校验和
  * get_tx_csum: Report whether transmit checksums are turned on or off
+ * 				(同上)
  * set_tx_csum: Turn transmit checksums on or off
+ * 				(同上)
  * get_sg: Report whether scatter-gather is enabled
+ * 		   获取scatter-gather是否使能
  * set_sg: Turn scatter-gather on or off
+ * 		   开启或关闭scatter-gather功能
  * get_tso: Report whether TCP segmentation offload is enabled
  * set_tso: Turn TCP segmentation offload on or off
  * get_ufo: Report whether UDP fragmentation offload is enabled

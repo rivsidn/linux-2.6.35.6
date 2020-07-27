@@ -164,6 +164,8 @@ static void skb_under_panic(struct sk_buff *skb, int sz, void *here)
  *	tail room of size bytes. The object has a reference count of one.
  *	The return is the buffer. On a failure the return is %NULL.
  *
+ *  申请一个sk_buff，返回的buffer引用计数为 1，失败时返回值为NULL。
+ *
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
@@ -2767,6 +2769,7 @@ done:
 }
 EXPORT_SYMBOL_GPL(skb_gro_receive);
 
+//TODO: 是时候将这个结构体一网打尽啦。。。
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
@@ -3076,3 +3079,4 @@ void __skb_warn_lro_forwarding(const struct sk_buff *skb)
 			   " while LRO is enabled\n", skb->dev->name);
 }
 EXPORT_SYMBOL(__skb_warn_lro_forwarding);
+

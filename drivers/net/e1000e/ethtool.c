@@ -667,6 +667,7 @@ static void e1000_get_ringparam(struct net_device *netdev,
 	ring->rx_jumbo_pending = 0;
 }
 
+/* ethtool -G : Set RX/TX ring parameters */
 static int e1000_set_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring)
 {

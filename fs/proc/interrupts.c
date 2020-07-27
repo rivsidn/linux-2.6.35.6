@@ -51,3 +51,4 @@ static int __init proc_interrupts_init(void)
 	return 0;
 }
 module_init(proc_interrupts_init);
+

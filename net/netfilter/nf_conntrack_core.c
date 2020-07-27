@@ -174,6 +174,7 @@ clean_from_lists(struct nf_conn *ct)
 	nf_ct_remove_expectations(ct);
 }
 
+//被函数nf_conntrack_destroy()间接调用，该函数调用nf_conntrack_free()
 static void
 destroy_conntrack(struct nf_conntrack *nfct)
 {
@@ -212,7 +213,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	spin_unlock_bh(&nf_conntrack_lock);
 
 	if (ct->master)
-		nf_ct_put(ct->master);
+		nf_ct_put(ct->master);	//子链接增加了主链接的引用计数
 
 	pr_debug("destroy_conntrack: returning ct=%p to slab\n", ct);
 	nf_conntrack_free(ct);
@@ -232,6 +233,11 @@ void nf_ct_delete_from_lists(struct nf_conn *ct)
 }
 EXPORT_SYMBOL_GPL(nf_ct_delete_from_lists);
 
+//递交IPCT_DESTROY事件失败时候，会加入到该链表中，重复提交，直到提交成功
+//递交事件是在death_by_timeout()、ctnetlink_del_conntrack()中，也就是说一条
+//链接跟踪删除有两种可能：超时、用户下发删除命令。
+//在上述两种情况处理过程中会递交事件，如果递交事件失败，会将链接跟踪挂到dying
+//链表中，重复发送事件，直到事件发送成功才删除该链接。
 static void death_by_event(unsigned long ul_conntrack)
 {
 	struct nf_conn *ct = (void *)ul_conntrack;
@@ -245,20 +251,22 @@ static void death_by_event(unsigned long ul_conntrack)
 		return;
 	}
 	/* we've got the event delivered, now it's dying */
-	set_bit(IPS_DYING_BIT, &ct->status);
+	set_bit(IPS_DYING_BIT, &ct->status);	//成功递交事件之后，设置IPS_DYING_BIT 标识位
 	spin_lock(&nf_conntrack_lock);
 	hlist_nulls_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
 	spin_unlock(&nf_conntrack_lock);
 	nf_ct_put(ct);
 }
 
+//加入到dying链中的全都是事件发送失败了，等待一段时候后再次执行发送事件动作，
+//成功之后再删除。
 void nf_ct_insert_dying_list(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 
 	/* add this conntrack to the dying list */
 	spin_lock_bh(&nf_conntrack_lock);
-	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,		
 			     &net->ct.dying);
 	spin_unlock_bh(&nf_conntrack_lock);
 	/* set a new timer to retry event delivery */
@@ -269,11 +277,14 @@ void nf_ct_insert_dying_list(struct nf_conn *ct)
 }
 EXPORT_SYMBOL_GPL(nf_ct_insert_dying_list);
 
+/* 
+ * TODO:定时器回调函数是在什么上下文中？
+ */
 static void death_by_timeout(unsigned long ul_conntrack)
 {
 	struct nf_conn *ct = (void *)ul_conntrack;
 
-	if (!test_bit(IPS_DYING_BIT, &ct->status) &&
+	if (!test_bit(IPS_DYING_BIT, &ct->status) &&	//没设置IPS_DYING_BIT标识位的才递交事件
 	    unlikely(nf_conntrack_event(IPCT_DESTROY, ct) < 0)) {
 		/* destroy event was not delivered */
 		nf_ct_delete_from_lists(ct);
@@ -289,8 +300,14 @@ static void death_by_timeout(unsigned long ul_conntrack)
  * Warning :
  * - Caller must take a reference on returned object
  *   and recheck nf_ct_tuple_equal(tuple, &h->tuple)
- * OR
+ *   调用者必须要增加返回对象的引用计数并且检查是否相同
+ * OR/或者
  * - Caller must lock nf_conntrack_lock before calling this function
+ *   必须要获取到nf_conntrack_lock 锁
+ *
+ * 分别对应内核代码中调用该函数的两种方式，nf_conntrack_find_get()和
+ * ctnetlink_new_conntrack()，应该都是自己实现的，哈哈。
+ *
  */
 struct nf_conntrack_tuple_hash *
 __nf_conntrack_find(struct net *net, u16 zone,
@@ -302,9 +319,12 @@ __nf_conntrack_find(struct net *net, u16 zone,
 
 	/* Disable BHs the entire time since we normally need to disable them
 	 * at least once for the stats anyway.
+	 *
+	 * 屏蔽软中断，当中断执行完时候，不会进入到软中断的执行中
 	 */
 	local_bh_disable();
 begin:
+	//寻找匹配的链接跟踪
 	hlist_nulls_for_each_entry_rcu(h, n, &net->ct.hash[hash], hnnode) {
 		if (nf_ct_tuple_equal(tuple, &h->tuple) &&
 		    nf_ct_zone(nf_ct_tuplehash_to_ctrack(h)) == zone) {
@@ -318,6 +338,16 @@ begin:
 	 * if the nulls value we got at the end of this lookup is
 	 * not the expected one, we must restart lookup.
 	 * We probably met an item that was moved to another chain.
+	 */
+	/*
+	 * head-->item0-->item1-->item2-->item3-->...-->null
+	 * 
+	 * 意思是如果我们想要寻找item3，如果我们遍历item1的时候，item1恰好被
+	 * 移动到了另一个链上，肯定就找不到item3了，所以如果检查发现最后的
+	 * hash值不一致，继续要重新搜索。
+	 * 
+	 * 链接跟踪中一共有三种类型的链: unconfirmed, hash_table, dying
+	 * item可能会被从hash_table中摘出来，插入到dying中。
 	 */
 	if (get_nulls_value(n) != hash) {
 		NF_CT_STAT_INC(net, search_restart);
@@ -342,12 +372,13 @@ begin:
 	h = __nf_conntrack_find(net, zone, tuple);
 	if (h) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
+		//可能会出现引用计数为0但是链接没清的情况
 		if (unlikely(nf_ct_is_dying(ct) ||
-			     !atomic_inc_not_zero(&ct->ct_general.use)))
+			     !atomic_inc_not_zero(&ct->ct_general.use)))	//此处增加了引用计数，调用该函数后需要put()
 			h = NULL;
 		else {
 			if (unlikely(!nf_ct_tuple_equal(tuple, &h->tuple) ||
-				     nf_ct_zone(ct) != zone)) {
+				     nf_ct_zone(ct) != zone)) {		//TODO：这里是神码意思？找到了又不认了
 				nf_ct_put(ct);
 				goto begin;
 			}
@@ -359,6 +390,7 @@ begin:
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_find_get);
 
+/* 同一个链接跟踪需要添加到两个表中 */
 static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
 				       unsigned int repl_hash)
@@ -456,7 +488,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	   weird delay cases. */
 	ct->timeout.expires += jiffies;
 	add_timer(&ct->timeout);
-	atomic_inc(&ct->ct_general.use);
+	atomic_inc(&ct->ct_general.use);	//此处再次增加了引用计数
 	set_bit(IPS_CONFIRMED_BIT, &ct->status);
 
 	/* Since the lookup is lockless, hash insertion must be done after
@@ -521,6 +553,11 @@ EXPORT_SYMBOL_GPL(nf_conntrack_tuple_taken);
 
 /* There's a small race here where we may free a just-assured
    connection.  Too bad: we're in trouble anyway. */
+/* 
+ * 当前链接跟踪数量超过最大链接跟踪数的时候需要调用该函数，释放掉
+ * 最早创建的链接跟踪。
+ * 但是当前存在一个问题是，该函数可能会释放掉一个刚确认的链接。
+ */
 static noinline int early_drop(struct net *net, unsigned int hash)
 {
 	/* Use oldest entry, which is roughly LRU */
@@ -583,6 +620,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
 	/* We don't want any race condition at early drop stage */
 	atomic_inc(&net->ct.count);
 
+	//如果设置了最大链接跟踪数，如果为0则表示没限制
 	if (nf_conntrack_max &&
 	    unlikely(atomic_read(&net->ct.count) > nf_conntrack_max)) {
 		unsigned int hash = hash_conntrack(net, zone, orig);
@@ -636,7 +674,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
 	 * changes to lookup keys must be done before setting refcnt to 1
 	 */
 	smp_wmb();
-	atomic_set(&ct->ct_general.use, 1);
+	atomic_set(&ct->ct_general.use, 1);	//刚申请的nf_conn{} 的引用计数为设置为 1
 	return ct;
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
@@ -727,6 +765,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	}
 
 	/* Overload tuple linked list to put us in unconfirmed list. */
+	/* 新建立的nf_conn{} 首先放到unconfirmed链中 */
 	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
 		       &net->ct.unconfirmed);
 
@@ -1077,6 +1116,11 @@ static void nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 }
 
 /* Bring out ya dead! */
+/* 
+ * 这个函数的意思是，返回所有confirmed的链接跟踪并且递交事件，销毁该链接;
+ * 对于没有确认的confirmed链接，设置IPS_DYING_BIT标识位;
+ * 返回NULL结束nf_ct_iterate_cleanup()中的循环
+ */
 static struct nf_conn *
 get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 		void *data, unsigned int *bucket)
@@ -1096,6 +1140,7 @@ get_next_corpse(struct net *net, int (*iter)(struct nf_conn *i, void *data),
 	hlist_nulls_for_each_entry(h, n, &net->ct.unconfirmed, hnnode) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		if (iter(ct, data))
+			//没confirmed的链接同样能够设置IPS_DYING_BIT标识位
 			set_bit(IPS_DYING_BIT, &ct->status);
 	}
 	spin_unlock_bh(&nf_conntrack_lock);
@@ -1106,6 +1151,10 @@ found:
 	return ct;
 }
 
+/* 
+ * 将链接跟踪和data作为入参传入到iter()中，将iter()返回true的链接跟踪清空 
+ * 该函数用于批量清空链接跟踪
+ */
 void nf_ct_iterate_cleanup(struct net *net,
 			   int (*iter)(struct nf_conn *i, void *data),
 			   void *data)
@@ -1115,11 +1164,11 @@ void nf_ct_iterate_cleanup(struct net *net,
 
 	while ((ct = get_next_corpse(net, iter, data, &bucket)) != NULL) {
 		/* Time to push up daises... */
-		if (del_timer(&ct->timeout))
+		if (del_timer(&ct->timeout))	//返回值为1表示定时器为active状态
 			death_by_timeout((unsigned long)ct);
 		/* ... else the timer will get him soon. */
 
-		nf_ct_put(ct);
+		nf_ct_put(ct);	//TODO: 此处一直put()是否会出问题
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);
@@ -1139,6 +1188,7 @@ static int kill_report(struct nf_conn *i, void *data)
 		return 1;
 
 	/* Avoid the delivery of the destroy event in death_by_timeout(). */
+	/* 事件递交成功，不需要重复提交 */
 	set_bit(IPS_DYING_BIT, &i->status);
 	return 1;
 }
@@ -1328,7 +1378,7 @@ static int nf_conntrack_init_init_net(void)
 
 	/* Idea from tcp.c: use 1/16384 of memory.  On i386: 32MB
 	 * machine has 512 buckets. >= 1GB machines have 16384 buckets. */
-	if (!nf_conntrack_htable_size) {
+	if (!nf_conntrack_htable_size) {	//如果用户没有设置参数，根据设备内存大小动态配置
 		nf_conntrack_htable_size
 			= (((totalram_pages << PAGE_SHIFT) / 16384)
 			   / sizeof(struct hlist_head));
@@ -1384,6 +1434,8 @@ err_proto:
 
 /*
  * We need to use special "null" values, not used in hash table
+ * 通过这些不同的null值来区分不同的链，此处指定魔鬼数字来保证该值
+ * 没被hash表用到应该是经过了数学计算的
  */
 #define UNCONFIRMED_NULLS_VAL	((1<<30)+0)
 #define DYING_NULLS_VAL		((1<<30)+1)

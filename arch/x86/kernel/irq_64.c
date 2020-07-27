@@ -20,6 +20,7 @@
 #include <asm/idle.h>
 #include <asm/apic.h>
 
+//结构体+变量名
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
 
@@ -54,6 +55,7 @@ bool handle_irq(unsigned irq, struct pt_regs *regs)
 
 	stack_overflow_check(regs);
 
+	/* 通过中断号获取到中断描述符表 */
 	desc = irq_to_desc(irq);
 	if (unlikely(!desc))
 		return false;

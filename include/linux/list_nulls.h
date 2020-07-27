@@ -12,6 +12,13 @@
  * We therefore use the last significant bit of 'ptr' :
  * Set to 1 : This is a 'nulls' end-of-list marker (ptr >> 1)
  * Set to 0 : This is a pointer to some object (ptr)
+ *
+ * TODO:链表中的内容都是4(8)字节是所有的都是这样还是特殊情况。
+ *
+ * 再链表中存储的对下那个都是4字节或8字节对齐的。
+ * 所以我们用指针的最后一位表示是否到达了链表的结尾：
+ * 1：链表结束标志
+ * 0：该指针指向具体内容
  */
 
 struct hlist_nulls_head {
@@ -21,6 +28,8 @@ struct hlist_nulls_head {
 struct hlist_nulls_node {
 	struct hlist_nulls_node *next, **pprev;
 };
+
+//指定一个数值当作指针的指向的地址，后续操作确保不会访问到这个地址
 #define INIT_HLIST_NULLS_HEAD(ptr, nulls) \
 	((ptr)->first = (struct hlist_nulls_node *) (1UL | (((long)nulls) << 1)))
 
@@ -46,6 +55,7 @@ static inline unsigned long get_nulls_value(const struct hlist_nulls_node *ptr)
 	return ((unsigned long)ptr) >> 1;
 }
 
+/* 该节点没加入到hash表中 */
 static inline int hlist_nulls_unhashed(const struct hlist_nulls_node *h)
 {
 	return !h->pprev;
@@ -56,6 +66,7 @@ static inline int hlist_nulls_empty(const struct hlist_nulls_head *h)
 	return is_a_nulls(h->first);
 }
 
+/* 头插 */
 static inline void hlist_nulls_add_head(struct hlist_nulls_node *n,
 					struct hlist_nulls_head *h)
 {
@@ -68,6 +79,7 @@ static inline void hlist_nulls_add_head(struct hlist_nulls_node *n,
 		first->pprev = &n->next;
 }
 
+/* 删除节点 */
 static inline void __hlist_nulls_del(struct hlist_nulls_node *n)
 {
 	struct hlist_nulls_node *next = n->next;
@@ -80,6 +92,10 @@ static inline void __hlist_nulls_del(struct hlist_nulls_node *n)
 static inline void hlist_nulls_del(struct hlist_nulls_node *n)
 {
 	__hlist_nulls_del(n);
+	/* 
+	 * 表示此时的pprev是不能访问的，否则会触发一个oops，
+	 * 感觉此处类似与BUG_ON()
+	 */
 	n->pprev = LIST_POISON2;
 }
 
@@ -110,3 +126,4 @@ static inline void hlist_nulls_del(struct hlist_nulls_node *n)
 	     pos = pos->next)
 
 #endif
+

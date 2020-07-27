@@ -217,6 +217,7 @@ EXPORT_SYMBOL(skb_make_writable);
 void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *);
 EXPORT_SYMBOL(ip_ct_attach);
 
+//TODO: REJECT 会用到这部分，暂时不跟踪
 void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
 {
 	void (*attach)(struct sk_buff *, struct sk_buff *);
@@ -239,7 +240,7 @@ void nf_conntrack_destroy(struct nf_conntrack *nfct)
 	void (*destroy)(struct nf_conntrack *);
 
 	rcu_read_lock();
-	destroy = rcu_dereference(nf_ct_destroy);
+	destroy = rcu_dereference(nf_ct_destroy);	//函数destroy_conntrack()的指针
 	BUG_ON(destroy == NULL);
 	destroy(nfct);
 	rcu_read_unlock();

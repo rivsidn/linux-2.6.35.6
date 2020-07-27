@@ -521,6 +521,7 @@ static inline int forced_push(struct tcp_sock *tp)
 	return after(tp->write_seq, tp->pushed_seq + (tp->max_window >> 1));
 }
 
+/* 申请一个新的skb放到socket的写队列中 */
 static inline void skb_entail(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -928,6 +929,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	mss_now = tcp_send_mss(sk, &size_goal, flags);
 
 	/* Ok commence sending. */
+	/* 开始着手发送 */
 	iovlen = msg->msg_iovlen;
 	iov = msg->msg_iov;
 	copied = 0;
@@ -938,9 +940,9 @@ int tcp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 
 	sg = sk->sk_route_caps & NETIF_F_SG;
 
-	while (--iovlen >= 0) {
-		int seglen = iov->iov_len;
-		unsigned char __user *from = iov->iov_base;
+	while (--iovlen >= 0) {			//总共有多少个iov
+		int seglen = iov->iov_len;	//每个iov的长度
+		unsigned char __user *from = iov->iov_base;	//每个iov的基地址
 
 		iov++;
 
@@ -948,11 +950,11 @@ int tcp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 			int copy = 0;
 			int max = size_goal;
 
-			skb = tcp_write_queue_tail(sk);
+			skb = tcp_write_queue_tail(sk);		//取出一个skb	TODO:具体的数据结构是怎么实现的
 			if (tcp_send_head(sk)) {
 				if (skb->ip_summed == CHECKSUM_NONE)
 					max = mss_now;
-				copy = max - skb->len;
+				copy = max - skb->len;		//TODO:这一段没看明白
 			}
 
 			if (copy <= 0) {
@@ -981,11 +983,12 @@ new_segment:
 			}
 
 			/* Try to append data to the end of skb. */
+			/* 如果当前skb能承载的数据长度比当前iov的数据长度长，则直接copy */
 			if (copy > seglen)
 				copy = seglen;
 
 			/* Where to copy to? */
-			if (skb_tailroom(skb) > 0) {
+			if (skb_tailroom(skb) > 0) {	//TODO:skb数据结构
 				/* We have some space in skb head. Superb! */
 				if (copy > skb_tailroom(skb))
 					copy = skb_tailroom(skb);
@@ -1030,8 +1033,7 @@ new_segment:
 						goto wait_for_memory;
 				}
 
-				/* Time to copy data. We are close to
-				 * the end! */
+				/* Time to copy data. We are close to the end! */
 				err = skb_copy_to_page(sk, from, skb, page,
 						       off, copy);
 				if (err) {

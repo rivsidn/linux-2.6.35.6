@@ -32,6 +32,9 @@ nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *e;
 
+	//关于sysctl_events，就只有此处再用
+	//如果没有指定确切的ctmask、expmask值，且此处的sysctl_events没设置，
+	//会在后边直接返回 NULL
 	if (!ctmask && !expmask && net->ct.sysctl_events) {
 		ctmask = ~0;
 		expmask = ~0;
@@ -102,6 +105,7 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 	if (e == NULL)
 		goto out_unlock;
 
+	/* 在dying链表中的ct表示已经递交过一次event且失败了,之后会通过death_by_event()重复递交*/
 	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct)) {
 		struct nf_ct_event item = {
 			.ct 	= ct,
@@ -111,7 +115,9 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 		/* This is a resent of a destroy event? If so, skip missed */
 		unsigned long missed = e->pid ? 0 : e->missed;
 
-		if (!((eventmask | missed) & e->ctmask))
+		//ctmask表示递交的事件的掩码，掩码为0表示没有需要递交的事件，
+		//那此处直接 goto out_unlock;
+		if (!((eventmask | missed) & e->ctmask))	
 			goto out_unlock;
 
 		ret = notify->fcn(eventmask | missed, &item);
@@ -121,7 +127,7 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 				/* This is a destroy event that has been
 				 * triggered by a process, we store the PID
 				 * to include it in the retransmission. */
-				if (eventmask & (1 << IPCT_DESTROY) &&
+				if (eventmask & (1 << IPCT_DESTROY) &&		//当事件为IPCT_DESTROY时，不需要存储missed
 				    e->pid == 0 && pid != 0)
 					e->pid = pid;
 				else

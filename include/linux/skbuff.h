@@ -1242,11 +1242,13 @@ static inline int skb_tailroom(const struct sk_buff *skb)
 
 /**
  *	skb_reserve - adjust headroom
+ *				- 调整头部空间
  *	@skb: buffer to alter
  *	@len: bytes to move
  *
  *	Increase the headroom of an empty &sk_buff by reducing the tail
  *	room. This is only allowed for an empty buffer.
+ *	通过减少尾部空间来增加头部空间，该操作仅允许空buffer。
  */
 static inline void skb_reserve(struct sk_buff *skb, int len)
 {
@@ -1383,6 +1385,9 @@ static inline int skb_network_offset(const struct sk_buff *skb)
  * locations. The actual performance hit varies, it can be small if the
  * hardware handles it or large if we have to take an exception and fix it
  * in software.
+ * CPUs 访问不对齐的内存地址可能会导致性能损耗，实际的消耗因架构而异，硬件
+ * 处理时对性能影响比较小，如果产生异常由软件来处理，此时就会产生较大性能
+ * 损耗。
  *
  * Since an ethernet header is 14 bytes network drivers often end up with
  * the IP header at an unaligned offset. The IP header can be aligned by
@@ -1394,9 +1399,12 @@ static inline int skb_network_offset(const struct sk_buff *skb)
  * The downside to this alignment of the IP header is that the DMA is now
  * unaligned. On some architectures the cost of an unaligned DMA is high
  * and this cost outweighs the gains made by aligning the IP header.
+ * IP header对齐的副作用的是DMA当前是不对齐的,在某些架构上，DMA不对齐造成的
+ * 损耗可能比IP header对齐获取的回报还要大。
  *
  * Since this trade off varies between architectures, we allow NET_IP_ALIGN
  * to be overridden.
+ * 因为此处在不同架构上的表现不同，我们允许覆盖NET_IP_ALIGN。
  */
 #ifndef NET_IP_ALIGN
 #define NET_IP_ALIGN	2
@@ -1533,9 +1541,12 @@ extern struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
  *	buffer has unspecified headroom built in. Users should allocate
  *	the headroom they think they need without accounting for the
  *	built in space. The built in space is used for optimisations.
+ *	内建头部空间的大小不确定，用户申请认为需要的头部空间时不需要考虑内
+ *	建空间，内建空间用于优化。
  *
  *	%NULL is returned if there is no free memory. Although this function
  *	allocates memory it can be called from an interrupt.
+ *	当没空间时返回NULL，虽然该函数会申请内存，但可以在中断中调用。
  */
 static inline struct sk_buff *netdev_alloc_skb(struct net_device *dev,
 		unsigned int length)

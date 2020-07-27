@@ -38,6 +38,7 @@ EXPORT_SYMBOL(net_msg_warn);
 DEFINE_RATELIMIT_STATE(net_ratelimit_state, 5 * HZ, 10);
 /*
  * All net warning printk()s should be guarded by this function.
+ * 留意该函数
  */
 int net_ratelimit(void)
 {

@@ -743,3 +743,4 @@ void br_sysfs_delbr(struct net_device *dev)
 	sysfs_remove_bin_file(kobj, &bridge_forward);
 	sysfs_remove_group(kobj, &bridge_group);
 }
+

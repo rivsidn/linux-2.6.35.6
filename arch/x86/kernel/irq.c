@@ -44,6 +44,8 @@ void ack_bad_irq(unsigned int irq)
 #define irq_stats(x)		(&per_cpu(irq_stat, x))
 /*
  * /proc/interrupts printing:
+ *
+ * 同样的也是中断，实现也需要中断向量支持，此处这些中断独占一个中断向量
  */
 static int show_other_interrupts(struct seq_file *p, int prec)
 {
@@ -145,6 +147,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
+	//核心就是通过中断号找到中断描述符，输出内容
 	desc = irq_to_desc(i);
 	if (!desc)
 		return 0;
@@ -164,7 +167,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 	if (action) {
 		seq_printf(p, "  %s", action->name);
-		while ((action = action->next) != NULL)
+		while ((action = action->next) != NULL)	//共享中断
 			seq_printf(p, ", %s", action->name);
 	}
 
@@ -222,18 +225,20 @@ u64 arch_irq_stat(void)
  * do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).
+ * 处理正常的设备中断(特殊的CPU间中断由自己的特定处理函数处理)
  */
 unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	/* high bit used in ret_from_ code  */
-	unsigned vector = ~regs->orig_ax;
+	unsigned vector = ~regs->orig_ax;	//获取中断向量
 	unsigned irq;
 
 	exit_idle();
 	irq_enter();
 
+	//获取中断号
 	irq = __get_cpu_var(vector_irq)[vector];
 
 	if (!handle_irq(irq, regs)) {

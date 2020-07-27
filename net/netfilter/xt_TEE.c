@@ -73,7 +73,7 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	fl.nl_u.ip4_u.daddr = info->gw.ip;
 	fl.nl_u.ip4_u.tos   = RT_TOS(iph->tos);
 	fl.nl_u.ip4_u.scope = RT_SCOPE_UNIVERSE;
-	if (ip_route_output_key(net, &rt, &fl) != 0)
+	if (ip_route_output_key(net, &rt, &fl) != 0)	//查询路由
 		return false;
 
 	skb_dst_drop(skb);
@@ -97,12 +97,17 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	 * happened. The copy should be independently delivered to the TEE
 	 * --gateway.
 	 */
+	/* 
+	 * 调用过这个函数之后，此时的skb这个指针指向的就是新申请的skb了.
+	 * 后续的处理处理的都是新申请的skb.
+	 */
 	skb = pskb_copy(skb, GFP_ATOMIC);
 	if (skb == NULL)
 		return XT_CONTINUE;
 
 #ifdef WITH_CONNTRACK
 	/* Avoid counting cloned packets towards the original connection. */
+	/* 避免将clone的报文统计到原来的链接跟踪中，clone报文是不会创建链接跟踪表 */
 	nf_conntrack_put(skb->nfct);
 	skb->nfct     = &nf_conntrack_untracked.ct_general;
 	skb->nfctinfo = IP_CT_NEW;
@@ -127,7 +132,7 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 	if (tee_tg_route4(skb, info)) {
 		percpu_write(tee_active, true);
-		ip_local_out(skb);
+		ip_local_out(skb);		//该函数返回之前不允许进入到tee_tg4()中
 		percpu_write(tee_active, false);
 	} else {
 		kfree_skb(skb);

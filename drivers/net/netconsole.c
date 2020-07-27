@@ -52,11 +52,13 @@ MODULE_LICENSE("GPL");
 #define MAX_PARAM_LENGTH	256
 #define MAX_PRINT_CHUNK		1000
 
+//内核加载时候的配置，对外叫netconsole,对内叫config
 static char config[MAX_PARAM_LENGTH];
 module_param_string(netconsole, config, MAX_PARAM_LENGTH, 0);
 MODULE_PARM_DESC(netconsole, " netconsole=[src-port]@[src-ip]/[dev],[tgt-port]@<tgt-ip>/[tgt-macaddr]");
 
 #ifndef	MODULE
+//如果没有定义成模块需要设置启动参数
 static int __init option_setup(char *opt)
 {
 	strlcpy(config, opt, MAX_PARAM_LENGTH);
@@ -66,6 +68,7 @@ __setup("netconsole=", option_setup);
 #endif	/* MODULE */
 
 /* Linked list of all configured targets */
+/* config参数中可以同时定义多个target，多个target之间用';'分割 */
 static LIST_HEAD(target_list);
 
 /* This needs to be a spinlock because write_msg() cannot sleep */
@@ -174,6 +177,7 @@ static struct netconsole_target *alloc_param_target(char *target_config)
 		goto fail;
 	}
 
+	//初始化参数
 	nt->np.name = "netconsole";
 	strlcpy(nt->np.dev_name, "eth0", IFNAMSIZ);
 	nt->np.local_port = 6665;
@@ -208,7 +212,7 @@ static void free_param_target(struct netconsole_target *nt)
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
 
 /*
- * Our subsystem hierarchy is:
+ * Our subsystem hierarchy(子系统目录层级) is:
  *
  * /sys/kernel/config/netconsole/
  *				|
@@ -657,6 +661,7 @@ static struct configfs_subsystem netconsole_subsys = {
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
 
 /* Handle network interface device notifications */
+/* 网络接口变化响应 */
 static int netconsole_netdev_event(struct notifier_block *this,
 				   unsigned long event,
 				   void *ptr)
@@ -713,6 +718,11 @@ static void write_msg(struct console *con, const char *msg, unsigned int len)
 	if (list_empty(&target_list))
 		return;
 
+	//此处为什么需要禁止本地中断呢？
+	//重要原因是，该函数可能会在任意上下文中被调用，如果我在普通的进程上下文
+	//中被调用，那么此时就可能会被中断打断，导致输出乱序列。
+	//加中断是为了确保此时输出不会被中断打断。
+	//此时就可以认为该函数的优先级类似于一个中断处理函数。
 	spin_lock_irqsave(&target_list_lock, flags);
 	list_for_each_entry(nt, &target_list, list) {
 		netconsole_target_get(nt);
@@ -736,6 +746,7 @@ static void write_msg(struct console *con, const char *msg, unsigned int len)
 	spin_unlock_irqrestore(&target_list_lock, flags);
 }
 
+/* 注册一个console 结构体，有dmesg打印信息时候会调用write_msg函数 */
 static struct console netconsole = {
 	.name	= "netcon",
 	.flags	= CON_ENABLED,
@@ -770,6 +781,7 @@ static int __init init_netconsole(void)
 	if (err)
 		goto fail;
 
+	//实际就是动态产生target
 	err = dynamic_netconsole_init();
 	if (err)
 		goto undonotifier;
@@ -822,3 +834,4 @@ static void __exit cleanup_netconsole(void)
 
 module_init(init_netconsole);
 module_exit(cleanup_netconsole);
+

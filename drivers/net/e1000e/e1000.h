@@ -179,6 +179,8 @@ struct e1000_ps_page {
 /*
  * wrappers around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
+ *
+ * sk_buff 封装，DMA处理函数可以将数据存储到buffer中
  */
 struct e1000_buffer {
 	dma_addr_t dma;

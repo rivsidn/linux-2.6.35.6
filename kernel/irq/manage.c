@@ -1045,6 +1045,8 @@ EXPORT_SYMBOL(free_irq);
  *	IRQF_SAMPLE_RANDOM	The interrupt can be used for entropy
  *	IRQF_TRIGGER_*		Specify active edge(s) or level
  *
+ *  参见handle_IRQ_event()函数的执行流程，thread_fn()中断线程的执行函数
+ *  中断执行过程中会通过handler 的返回值判断是否唤醒该进程。
  */
 int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 			 irq_handler_t thread_fn, unsigned long irqflags,

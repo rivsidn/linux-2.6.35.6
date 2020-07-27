@@ -115,9 +115,9 @@ static inline void atomic_dec(atomic_t *v)
 #define atomic_dec_return(v)		atomic_sub_return(1, (v))
 #define atomic_inc_return(v)		atomic_add_return(1, (v))
 
-#define atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)
-#define atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
-#define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
+#define atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)	//v减去i，如果等于0返回true
+#define atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)	//递减v，如果等于0返回true
+#define atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)	//递增v，如果等于0返回true
 
 #define atomic_add_unless(v, a, u)				\
 ({								\
@@ -128,6 +128,7 @@ static inline void atomic_dec(atomic_t *v)
 	c != (u);						\
 })
 
+//如果引用计数不为 0，则引用计数加 1，如果执行了增加操作则返回true
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)

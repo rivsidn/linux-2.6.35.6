@@ -23,7 +23,11 @@ notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	   If there is a real ct entry correspondig to this packet,
 	   it'll hang aroun till timing out. We don't deal with it
 	   for performance reasons. JK */
-	skb->nfct = &nf_conntrack_untracked.ct_general;
+	/*
+	 * 给skb绑定一个假的链接跟踪，这个假的链接跟踪在nf_conntrack_init_init_net()
+	 * 中被初始化，该链接跟踪不在任何hash表中，也永远不会被删除.
+	 */
+	skb->nfct = &nf_conntrack_untracked.ct_general;	
 	skb->nfctinfo = IP_CT_NEW;
 	nf_conntrack_get(skb->nfct);
 

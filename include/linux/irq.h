@@ -146,6 +146,7 @@ struct timer_rand_state;
 struct irq_2_iommu;
 /**
  * struct irq_desc - interrupt descriptor
+ * 				   - 中断描述符
  * @irq:		interrupt number for this descriptor
  * @timer_rand_state:	pointer to timer rand state struct
  * @kstat_irqs:		irq stats per cpu

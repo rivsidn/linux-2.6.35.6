@@ -706,6 +706,9 @@ enum tcp_ca_event {
 #define TCP_CONG_NON_RESTRICTED 0x1
 #define TCP_CONG_RTT_STAMP	0x2
 
+/*
+ * TCP 的拥塞处理算法，必须要实现的通过`required`标出
+ */
 struct tcp_congestion_ops {
 	struct list_head	list;
 	unsigned long flags;

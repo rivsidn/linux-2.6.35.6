@@ -104,6 +104,7 @@ static inline void netpoll_poll_unlock(void *have)
 {
 	struct napi_struct *napi = have;
 
+	//此处如果不为空表示已经使能了netpoll
 	if (napi) {
 		napi->poll_owner = -1;
 		spin_unlock(&napi->poll_lock);

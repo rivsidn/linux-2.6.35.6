@@ -3446,6 +3446,7 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 	napi->skb = NULL;
 	napi->poll = poll;
 	napi->weight = weight;
+	//将这个napi结构体，加入到设备的napi_list链表中
 	list_add(&napi->dev_list, &dev->napi_list);
 	napi->dev = dev;
 #ifdef CONFIG_NETPOLL
@@ -3512,6 +3513,8 @@ static void net_rx_action(struct softirq_action *h)
 		 * obtains the lock and sees NAPI_STATE_SCHED set will
 		 * actually make the ->poll() call.  Therefore we avoid
 		 * accidently calling ->poll() when NAPI is not scheduled.
+		 *
+		 * 避免当没有scheduled 时意外调用->poll() 函数
 		 */
 		work = 0;
 		if (test_bit(NAPI_STATE_SCHED, &n->state)) {
