@@ -447,6 +447,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
  *
  * This is the original x86 implementation which is used for every
  * interrupt type.
+ * 最初的x86实现，用于处理所有中断类型.
  */
 unsigned int __do_IRQ(unsigned int irq)
 {
