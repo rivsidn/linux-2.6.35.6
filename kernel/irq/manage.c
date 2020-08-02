@@ -166,10 +166,10 @@ static int setup_affinity(unsigned int irq, struct irq_desc *desc)
 	/*
 	 * Preserve an userspace affinity setup, but make sure that
 	 * one of the targets is online.
+	 * (保留用户空间的亲和性设置，但是要确认其中一个是在线的)
 	 */
 	if (desc->status & (IRQ_AFFINITY_SET | IRQ_NO_BALANCING)) {
-		if (cpumask_any_and(desc->affinity, cpu_online_mask)
-		    < nr_cpu_ids)
+		if (cpumask_any_and(desc->affinity, cpu_online_mask) < nr_cpu_ids)
 			goto set_affinity;
 		else
 			desc->status &= ~IRQ_AFFINITY_SET;

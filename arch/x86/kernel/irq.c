@@ -235,7 +235,7 @@ unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	unsigned vector = ~regs->orig_ax;	//获取中断向量
 	unsigned irq;
 
-	exit_idle();
+	exit_idle();		//退出idle状态
 	irq_enter();
 
 	//获取中断号

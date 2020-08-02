@@ -272,6 +272,7 @@ asmlinkage void do_softirq(void)
 
 /*
  * Enter an interrupt context.
+ * 进入到中断上下文中
  */
 void irq_enter(void)
 {
@@ -281,8 +282,9 @@ void irq_enter(void)
 	if (idle_cpu(cpu) && !in_interrupt()) {
 		__irq_enter();
 		tick_check_idle(cpu);
-	} else
+	} else {
 		__irq_enter();
+	}
 }
 
 #ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
