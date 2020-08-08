@@ -5708,6 +5708,9 @@ reset_and_undo:
  *	all states except ESTABLISHED and TIME_WAIT.
  *	It's called from both tcp_v4_rcv and tcp_v6_rcv and should be
  *	address independent.
+ *	(该函数实现了RFC793规定的除了ESTABLISHED和TIME_WAIT外其他状态的
+ *	报文接收处理流程)
+ *	(该函数可能会被v4,v6调用所以是地址独立的)
  */
 
 int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,

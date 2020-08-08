@@ -2394,7 +2394,7 @@ int tcp_send_synack(struct sock *sk)
 	return tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 }
 
-/* Prepare a SYN-ACK. */
+/* Prepare a SYN-ACK.(准备一个SYN-ACK包) */
 struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 				struct request_sock *req,
 				struct request_values *rvp)

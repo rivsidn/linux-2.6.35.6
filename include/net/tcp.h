@@ -632,6 +632,10 @@ extern u32	__tcp_select_window(struct sock *sk);
  * here too.  This is 36 bytes on 32-bit architectures,
  * 40 bytes on 64-bit machines, if this grows please adjust
  * skbuff.h:skbuff->cb[xxx] size appropriately.
+ * (报文发送队列引擎通过这个将每个TCP报文的信息传递跟传输层，
+ * 我们也在这里存储每个报文的主机序序列号。在32位系统上，此处
+ * 有36字节，在64位系统上有40字节，如果字节数增加了我们需要适
+ * 当调整skbuff结构体中cb的大小)
  */
 struct tcp_skb_cb {
 	union {

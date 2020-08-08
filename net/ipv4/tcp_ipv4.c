@@ -750,6 +750,8 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
  *	Send a SYN-ACK after having received a SYN.
  *	This still operates on a request_sock only, not on a big
  *	socket.
+ *	(在受到SYN之后发送SYN-ACK包，该操作在request_sock上操作，而
+ *	不是在大的sock上)
  */
 static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 			      struct request_sock *req,
@@ -1216,6 +1218,7 @@ static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_destructor= tcp_twsk_destructor,
 };
 
+//服务器处理链接请求
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_extend_values tmp_ext;
@@ -1235,6 +1238,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 #endif
 
 	/* Never answer to SYNs send to broadcast or multicast */
+	/* 不要以广播或者组播形式发送SYNs报文 */
 	if (skb_rtable(skb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
 		goto drop;
 
@@ -1532,8 +1536,10 @@ static __sum16 tcp_v4_checksum_init(struct sk_buff *skb)
 }
 
 
-/* The socket must have it's spinlock held when we get
+/*
+ * The socket must have it's spinlock held when we get
  * here.
+ * (调用到该函数的时候，我们必须已经获取到socket的自旋锁)
  *
  * We have a potential double-lock case here, so even when
  * doing backlog processing we use the BH locking scheme.
@@ -1546,9 +1552,12 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 #ifdef CONFIG_TCP_MD5SIG
 	/*
 	 * We really want to reject the packet as early as possible
+	 * (我们希望能够尽早丢掉报文)
 	 * if:
 	 *  o We're expecting an MD5'd packet and this is no MD5 tcp option
+	 *  (我们希望获取到一个MD5的报文，这个不是)
 	 *  o There is an MD5 option and we're not expecting one
+	 *  (此处设置了MD5选项但是我不是我们所期望的)
 	 */
 	if (tcp_v4_inbound_md5_hash(sk, skb))
 		goto discard;
@@ -1568,6 +1577,7 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 	if (skb->len < tcp_hdrlen(skb) || tcp_checksum_complete(skb))
 		goto csum_err;
 
+	//服务器第一次收到syn应该是处于listen状态
 	if (sk->sk_state == TCP_LISTEN) {
 		struct sock *nsk = tcp_v4_hnd_req(sk, skb);
 		if (!nsk)
@@ -1580,8 +1590,9 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 			}
 			return 0;
 		}
-	} else
+	} else {
 		sock_rps_save_rxhash(sk, skb->rxhash);
+	}
 
 
 	TCP_CHECK_TIMER(sk);
@@ -1653,6 +1664,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->flags	 = iph->tos;
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
+	//查找本地socket
 	sk = __inet_lookup_skb(&tcp_hashinfo, skb, th->source, th->dest);
 	if (!sk)
 		goto no_tcp_socket;
