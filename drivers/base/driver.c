@@ -96,7 +96,7 @@ EXPORT_SYMBOL_GPL(driver_find_device);
 /**
  * driver_create_file - create sysfs file for driver.
  * @drv: driver.
- * @attr: driver attribute descriptor.
+ * @attr: driver attribute descriptor(驱动属性描述符).
  */
 int driver_create_file(struct device_driver *drv,
 		       const struct driver_attribute *attr)
@@ -218,6 +218,8 @@ static void driver_remove_groups(struct device_driver *drv,
  * We pass off most of the work to the bus_add_driver() call,
  * since most of the things we have to do deal with the bus
  * structures.
+ * (我们将大部分工作放到bus_add_driver()函数中，因为大部分工作
+ * 需要处理bus结构体)
  */
 int driver_register(struct device_driver *drv)
 {
@@ -226,23 +228,28 @@ int driver_register(struct device_driver *drv)
 
 	BUG_ON(!drv->bus->p);
 
+	//意思是应该用bus提供的方法，之前通过drv方法是老版本的，需要更新
 	if ((drv->bus->probe && drv->probe) ||
 	    (drv->bus->remove && drv->remove) ||
 	    (drv->bus->shutdown && drv->shutdown))
 		printk(KERN_WARNING "Driver '%s' needs updating - please use "
 			"bus_type methods\n", drv->name);
 
+	//同一个驱动名字只能注册一次
 	other = driver_find(drv->name, drv->bus);
 	if (other) {
-		put_driver(other);
+		put_driver(other);	//由于增加了引用计数，此处需要减小
 		printk(KERN_ERR "Error: Driver '%s' is already registered, "
 			"aborting...\n", drv->name);
 		return -EBUSY;
 	}
 
+	//将驱动添加到bus上
 	ret = bus_add_driver(drv);
 	if (ret)
 		return ret;
+	//同样是创建sysfs文件系统，从r8169驱动这边找过来，没找到何
+	//时添加的，应该是其他驱动会用到。
 	ret = driver_add_groups(drv, drv->groups);
 	if (ret)
 		bus_remove_driver(drv);
@@ -269,6 +276,7 @@ EXPORT_SYMBOL_GPL(driver_unregister);
 
 /**
  * driver_find - locate driver on a bus by its name.
+ * 		(通过名字定位到在总线上的驱动)
  * @name: name of the driver.
  * @bus: bus to scan for the driver.
  *
@@ -276,6 +284,7 @@ EXPORT_SYMBOL_GPL(driver_unregister);
  * a bus to find driver by name. Return driver if found.
  *
  * Note that kset_find_obj increments driver's reference count.
+ * (注意kset_find_obj会增加驱动的引用计数)
  */
 struct device_driver *driver_find(const char *name, struct bus_type *bus)
 {

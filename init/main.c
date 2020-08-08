@@ -464,6 +464,7 @@ static int __init do_early_param(char *param, char *val)
 {
 	struct obs_kernel_param *p;
 
+	//在此处调用 early_param() 定义的函数
 	for (p = __setup_start; p < __setup_end; p++) {
 		if ((p->early && strcmp(param, p->str) == 0) ||
 		    (strcmp(param, "console") == 0 &&

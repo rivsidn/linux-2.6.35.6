@@ -289,12 +289,15 @@ static int __driver_attach(struct device *dev, void *data)
 
 /**
  * driver_attach - try to bind driver to devices.
+ * 		(尝试将驱动绑定到设备中)
  * @drv: driver.
  *
  * Walk the list of devices that the bus has on it and try to
  * match the driver with each one.  If driver_probe_device()
  * returns 0 and the @dev->driver is set, we've found a
  * compatible pair.
+ * (遍历总线上的设备链表，挨个尝试跟驱动匹配。如果driver_probe_device()
+ * 返回0且@dev->driver 设置了，我们找到了一个能匹配的)
  */
 int driver_attach(struct device_driver *drv)
 {

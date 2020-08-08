@@ -922,6 +922,7 @@ int device_private_init(struct device *dev)
 
 /**
  * device_add - add device to device hierarchy.
+ * 		(将设备添加到设备的层级结构中)
  * @dev: device.
  *
  * This is part 2 of device_register(), though may be called

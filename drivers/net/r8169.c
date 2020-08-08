@@ -5007,7 +5007,7 @@ static void rtl_shutdown(struct pci_dev *pdev)
 
 static struct pci_driver rtl8169_pci_driver = {
 	.name		= MODULENAME,
-	.id_table	= rtl8169_pci_tbl,
+	.id_table	= rtl8169_pci_tbl,	//不能为空，用于设备、驱动匹配
 	.probe		= rtl8169_init_one,
 	.remove		= __devexit_p(rtl8169_remove_one),
 	.shutdown	= rtl_shutdown,

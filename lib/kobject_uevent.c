@@ -318,6 +318,7 @@ EXPORT_SYMBOL_GPL(kobject_uevent_env);
 
 /**
  * kobject_uevent - notify userspace by ending an uevent
+ * 		(结束事件后通知用户态)
  *
  * @action: action that is happening
  * @kobj: struct kobject that the action is happening to

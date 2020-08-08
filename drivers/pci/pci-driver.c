@@ -101,6 +101,7 @@ static void pci_free_dynids(struct pci_driver *drv)
  * @count: input size
  *
  * Allow PCI IDs to be added to an existing driver via sysfs.
+ * (允许通过sysfs动态添加支持的PCI ID)
  */
 static ssize_t
 store_new_id(struct device_driver *driver, const char *buf, size_t count)
@@ -149,6 +150,7 @@ static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
  * @count: input size
  *
  * Removes a dynamic pci device ID to this driver.
+ * (允许PCI驱动删除动态添加的PCI ID)
  */
 static ssize_t
 store_remove_id(struct device_driver *driver, const char *buf, size_t count)
@@ -1064,6 +1066,7 @@ const struct dev_pm_ops pci_dev_pm_ops = {
 
 /**
  * __pci_register_driver - register a new pci driver
+ * 			(注册新的pci驱动)
  * @drv: the driver structure to register
  * @owner: owner module of drv
  * @mod_name: module name string
@@ -1092,10 +1095,12 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 	if (error)
 		goto out;
 
+	//允许设备驱动动态添加支持的PCI ID
 	error = pci_create_newid_file(drv);
 	if (error)
 		goto out_newid;
 
+	//允许设备驱动删除动态添加的PCI ID
 	error = pci_create_removeid_file(drv);
 	if (error)
 		goto out_removeid;

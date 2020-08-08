@@ -743,6 +743,8 @@ void kset_unregister(struct kset *k)
  * Lock kset via @kset->subsys, and iterate over @kset->list,
  * looking for a matching kobject. If matching object is found
  * take a reference and return the object.
+ * (锁定kset，递归遍历链表，查找是否有匹配的数据，找到了则增加
+ * 引用计数，返回找到的object.)
  */
 struct kobject *kset_find_obj(struct kset *kset, const char *name)
 {

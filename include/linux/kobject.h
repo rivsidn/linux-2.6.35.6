@@ -174,6 +174,7 @@ void kobj_ns_exit(enum kobj_ns_type type, const void *ns);
 
 /**
  * struct kset - a set of kobjects of a specific type, belonging to a specific subsystem.
+ * 		(特定类型的数据，属于特定的子系统)
  *
  * A kset defines a group of kobjects.  They can be individually
  * different "types" but overall these kobjects all want to be grouped

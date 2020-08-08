@@ -458,6 +458,7 @@ static inline void remove_deprecated_bus_links(struct device *dev) { }
 
 /**
  * bus_add_device - add device to bus
+ * 		(添加设备到总线上)
  * @dev: device being added
  *
  * - Add device's bus attributes.
@@ -643,6 +644,7 @@ static DRIVER_ATTR(uevent, S_IWUSR, NULL, driver_uevent_store);
 
 /**
  * bus_add_driver - Add a driver to the bus.
+ * 		(添加设备驱动到总线上)
  * @drv: driver.
  */
 int bus_add_driver(struct device_driver *drv)

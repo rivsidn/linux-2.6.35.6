@@ -888,6 +888,7 @@ int __must_check __pci_register_driver(struct pci_driver *, struct module *,
 
 /*
  * pci_register_driver must be a macro so that KBUILD_MODNAME can be expanded
+ * (pci_register_driver 必须是一个宏，这样能够展开KBUILD_MODNAME)
  */
 #define pci_register_driver(driver)		\
 	__pci_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)

@@ -1,5 +1,6 @@
 /*
  * module.c - module sysfs fun for drivers
+ * 	(模块的sysfs系统)
  *
  * This file is released under the GPLv2
  *

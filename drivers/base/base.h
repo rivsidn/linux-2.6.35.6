@@ -4,9 +4,12 @@
  *
  * @subsys - the struct kset that defines this bus.  This is the main kobject
  * @drivers_kset - the list of drivers associated with this bus
+ * 		(跟该总线相关的驱动链表)
  * @devices_kset - the list of devices associated with this bus
  * @klist_devices - the klist to iterate over the @devices_kset
+ * 		(用于遍历@devices_kset)
  * @klist_drivers - the klist to iterate over the @drivers_kset
+ * 		(用于遍历@drivers_kset)
  * @bus_notifier - the bus notifier list for anything that cares about things
  * on this bus.
  * @bus - pointer back to the struct bus_type that this structure is associated
