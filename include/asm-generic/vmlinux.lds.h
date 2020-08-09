@@ -1,6 +1,7 @@
 /*
  * Helper macros to support writing architecture specific
  * linker scripts.
+ * (帮助写架构链接脚本的宏)
  *
  * A minimal linker scripts has following content:
  * [This is a sample, architectures may have special requiriements]

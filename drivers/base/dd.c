@@ -4,6 +4,7 @@
  * This file contains the (sometimes tricky) code that controls the
  * interactions between devices and drivers, which primarily includes
  * driver binding and unbinding.
+ * (用于处理设备和驱动之间交互的代码，主要是驱动绑定和解绑)
  *
  * All of this code used to exist in drivers/base/bus.c, but was
  * relocated to here in the name of compartmentalization (since it wasn't
@@ -117,6 +118,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		goto probe_failed;
 	}
 
+	//将设备与驱动绑定之后，继而在该设备的基础上探测新的设备
 	if (dev->bus->probe) {
 		ret = dev->bus->probe(dev);
 		if (ret)
@@ -184,6 +186,7 @@ EXPORT_SYMBOL_GPL(wait_for_device_probe);
 
 /**
  * driver_probe_device - attempt to bind device & driver together
+ * 			(尝试将设备&驱动绑定到一起)
  * @drv: driver to bind a device to
  * @dev: device to try to bind to the driver
  *
@@ -301,6 +304,7 @@ static int __driver_attach(struct device *dev, void *data)
  */
 int driver_attach(struct device_driver *drv)
 {
+	//为总线中所有设备依次调用 __driver_attach() 函数
 	return bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
 }
 EXPORT_SYMBOL_GPL(driver_attach);

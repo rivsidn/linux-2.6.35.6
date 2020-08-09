@@ -462,8 +462,11 @@ static inline void remove_deprecated_bus_links(struct device *dev) { }
  * @dev: device being added
  *
  * - Add device's bus attributes.
+ *   (添加设备总线属性)
  * - Create links to device's bus.
+ *   (创建设备总线链接)
  * - Add the device to its bus's list of devices.
+ *   (将设备添加到总线中)
  */
 int bus_add_device(struct device *dev)
 {
@@ -873,6 +876,7 @@ static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
 
 /**
  * bus_register - register a bus with the system.
+ * 		(注册一个总线到系统中)
  * @bus: bus.
  *
  * Once we have that, we registered the bus with the kobject

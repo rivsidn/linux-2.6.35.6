@@ -227,6 +227,7 @@ struct pci_ats;
 
 /*
  * The pci_dev structure is used to describe PCI devices.
+ * (描述PCI设备的结构体)
  */
 struct pci_dev {
 	struct list_head bus_list;	/* node in per-bus list */

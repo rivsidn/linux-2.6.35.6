@@ -436,6 +436,8 @@ static noinline void __init_refok rest_init(void)
 	 * We need to spawn init first so that it obtains pid 1, however
 	 * the init task will end up wanting to create kthreads, which, if
 	 * we schedule it before we create kthreadd, will OOPS.
+	 * (首先我们需要创建init进程，所以init进程拥有进程号 1.
+	 * init进程最终想要创建线程，在创建线程之前我们调度她会造成OOPS.)
 	 */
 	kernel_thread(kernel_init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
@@ -792,8 +794,11 @@ static void __init do_initcalls(void)
  * Ok, the machine is now initialized. None of the devices
  * have been touched yet, but the CPU subsystem is up and
  * running, and memory and process management works.
+ * (当前设备已经初始化，还没有接触任何设备，但是CPU子系统
+ * 已经启动并开始运行，内存和进程管理已经开始工作)
  *
  * Now we can finally start doing some real work..
+ * (此时我们可以最终开始干写实际的工作了)
  */
 static void __init do_basic_setup(void)
 {

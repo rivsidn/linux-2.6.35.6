@@ -126,7 +126,9 @@ struct igbvf_buffer {
 			unsigned int page_offset;
 		};
 	};
+#if 0	//delete by yuchao for compile
 	struct page *page;
+#endif
 };
 
 union igbvf_desc {

@@ -1,5 +1,6 @@
 /*
  * ld script for the x86 kernel
+ * (x86内核的链接脚本)
  *
  * Historic 32-bit version written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  *

@@ -409,6 +409,7 @@ extern int hex_to_bin(char ch);
 #endif
 
 /* If you are writing a driver, please use dev_dbg instead */
+/* 如果是写的驱动，请用dev_dbg  */
 #if defined(DEBUG)
 #define pr_debug(fmt, ...) \
 	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)

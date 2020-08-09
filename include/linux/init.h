@@ -153,7 +153,7 @@ extern int initcall_debug;
 
 #endif
   
-#ifndef MODULE
+#ifndef MODULE		//不编译成模块时
 
 #ifndef __ASSEMBLY__
 
@@ -270,7 +270,7 @@ void __init parse_early_options(char *cmdline);
  */
 #define module_exit(x)	__exitcall(x);
 
-#else /* MODULE */
+#else /* MODULE(编译成模块时) */
 
 /* Don't use these in modules, but some people do... */
 #define early_initcall(fn)		module_init(fn)

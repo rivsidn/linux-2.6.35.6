@@ -130,6 +130,8 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
  *
  * This adds a single pci device to the global
  * device list and adds sysfs and procfs entries
+ * (添加一个单独的pci设备到全局设备链表中，并且
+ * 添加sysfs和procfs表项.)
  */
 int pci_bus_add_device(struct pci_dev *dev)
 {
@@ -177,6 +179,7 @@ int pci_bus_add_child(struct pci_bus *bus)
 
 /**
  * pci_bus_add_devices - insert newly discovered PCI devices
+ * 			(插入新发现的PCI设备)
  * @bus: bus to check for new devices
  *
  * Add newly discovered PCI devices (which are on the bus->devices
@@ -184,8 +187,11 @@ int pci_bus_add_child(struct pci_bus *bus)
  * entries.  Where a bridge is found, add the discovered bus to
  * the parents list of child buses, and recurse (breadth-first
  * to be compatible with 2.4)
+ * (添加新发现的PCI设备到全局PCI设备列表中，添加sysfs和procfs表项，
+ * 当一个桥发现的时候，添加发现的总线到子祖先的父链表中，递归如此.)
  *
  * Call hotplug for each new devices.
+ * (热插拔时每个新设备会调用到该函数)
  */
 void pci_bus_add_devices(const struct pci_bus *bus)
 {
@@ -193,8 +199,10 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 	struct pci_bus *child;
 	int retval;
 
+	//此处，设备已经在 bus->devices 链表中了
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/* Skip already-added devices */
+		/* 跳过已经添加了的设备 */
 		if (dev->is_added)
 			continue;
 		retval = pci_bus_add_device(dev);

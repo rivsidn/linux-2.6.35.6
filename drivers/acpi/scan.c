@@ -429,6 +429,7 @@ static int acpi_device_remove(struct device * dev)
 	return 0;
 }
 
+//ACPI(Advanced Configuration and Power Interface) 
 struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.suspend	= acpi_device_suspend,
@@ -591,6 +592,7 @@ static int acpi_start_single_object(struct acpi_device *device)
 
 /**
  * acpi_bus_register_driver - register a driver with the ACPI bus
+ * 			(注册设备驱动到ACPI总线)
  * @driver: driver being registered
  *
  * Registers a driver with the ACPI bus.  Searches the namespace for all
