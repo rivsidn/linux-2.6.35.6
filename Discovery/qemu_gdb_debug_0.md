@@ -118,9 +118,9 @@ qemu-system-x86_64  \
 gdb ./vmLinux
 
 #以下进行调试
-target remote:1234
-b start_kernel
-c
+(gdb) target remote:1234
+(gdb) b start_kernel
+(gdb) c
 ```
 
 
