@@ -17,6 +17,7 @@
  * 	from http://www.hypertransport.org
  *
  *	The Hypertransport I/O Link Specification
+ *	(Hypertransport HT总线)
  */
 
 #ifndef LINUX_PCI_REGS_H
@@ -25,6 +26,8 @@
 /*
  * Under PCI, each device has 256 bytes of configuration address space,
  * of which the first 64 bytes are standardized as follows:
+ * (PCI设备下，每个设备都256自己的配置地址空间，其中前64字节是固定的，
+ * 如下：)
  */
 #define PCI_VENDOR_ID		0x00	/* 16 bits */
 #define PCI_DEVICE_ID		0x02	/* 16 bits */

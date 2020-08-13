@@ -1,5 +1,6 @@
 /*
  * probe.c - PCI detection and setup code
+ * 	(PCI探测设置代码)
  */
 
 #include <linux/kernel.h>
@@ -29,6 +30,8 @@ static int find_anything(struct device *dev, void *data)
  * Some device drivers need know if pci is initiated.
  * Basically, we think pci is not initiated when there
  * is no device to be found on the pci_bus_type.
+ * (有些设备驱动想要知道pci 是不是初始化了，最开始时，
+ * 当在pci_bus_type 上没设备时我们认为pci 没有初始化)
  */
 int no_pci_devices(void)
 {
@@ -76,11 +79,12 @@ static ssize_t inline pci_bus_show_cpulistaffinity(struct device *dev,
 	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
 }
 
+/* 定义设备属性，sys文件系统 */
 DEVICE_ATTR(cpuaffinity,     S_IRUGO, pci_bus_show_cpumaskaffinity, NULL);
 DEVICE_ATTR(cpulistaffinity, S_IRUGO, pci_bus_show_cpulistaffinity, NULL);
 
 /*
- * PCI Bus Class
+ * PCI Bus Class(PCI总线类)
  */
 static void release_pcibus_dev(struct device *dev)
 {
@@ -104,8 +108,8 @@ static int __init pcibus_class_init(void)
 postcore_initcall(pcibus_class_init);
 
 /*
- * Translate the low bits of the PCI base
- * to the resource type
+ * Translate the low bits of the PCI base to the resource type
+ * (转换PCI基地址寄存器低位bit的值为资源类型)
  */
 static inline unsigned int pci_calc_resource_flags(unsigned int flags)
 {
@@ -124,18 +128,23 @@ static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 	if (!size)
 		return 0;
 
-	/* Get the lowest of them to find the decode size, and
-	   from that the extent.  */
+	/*
+	 * Get the lowest of them to find the decode size, and
+	 * from that the extent.
+	 */
 	size = (size & ~(size-1)) - 1;
 
-	/* base == maxbase can be valid only if the BAR has
-	   already been programmed with all 1s.  */
+	/*
+	 * base == maxbase can be valid only if the BAR has
+	 * already been programmed with all 1s.
+	 */
 	if (base == maxbase && ((base | size) & mask) != mask)
 		return 0;
 
 	return size;
 }
 
+//返回PCI BAR的类型
 static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
 {
 	if ((bar & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
@@ -151,11 +160,12 @@ static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
 }
 
 /**
- * pci_read_base - read a PCI BAR
+ * pci_read_base - read a PCI BAR(Base Address Register)
  * @dev: the PCI device
  * @type: type of the BAR
  * @res: resource buffer to be filled in
  * @pos: BAR position in the config space
+ * 	(配置空间中BAR的地址)
  *
  * Returns 1 if the BAR is 64-bit, or 0 if 32-bit.
  */

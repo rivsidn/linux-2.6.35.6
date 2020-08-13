@@ -1,5 +1,5 @@
 /*
- * class.c - basic device class management
+ * class.c - basic device class management(设备类管理)
  *
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs

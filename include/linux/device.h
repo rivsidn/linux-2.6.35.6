@@ -226,8 +226,11 @@ extern int __must_check __class_register(struct class *class,
 					 struct lock_class_key *key);
 extern void class_unregister(struct class *class);
 
-/* This is a #define to keep the compiler from merging different
- * instances of the __key variable */
+/*
+ * This is a #define to keep the compiler from merging different
+ * instances of the __key variable
+ * (通过宏定义让编译器合入不容的__key 实例的值)
+ */
 #define class_register(class)			\
 ({						\
 	static struct lock_class_key __key;	\

@@ -304,10 +304,11 @@ EXPORT_SYMBOL_GPL(bus_for_each_dev);
 
 /**
  * bus_find_device - device iterator for locating a particular device.
- * @bus: bus type
- * @start: Device to begin with
- * @data: Data to pass to match function
- * @match: Callback function to check device
+ * 		(用于找到一个特定设备的设备迭代器)
+ * @bus: bus type(总线类型)
+ * @start: Device to begin with(设备起始位置)
+ * @data: Data to pass to match function(传递给匹函数的数据)
+ * @match: Callback function to check device(回调函数)
  *
  * This is similar to the bus_for_each_dev() function above, but it
  * returns a reference to a device that is 'found' for later use, as

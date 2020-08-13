@@ -1110,6 +1110,7 @@ struct device *get_device(struct device *dev)
 
 /**
  * put_device - decrement reference count.
+ * 		(递减设备引用计数)
  * @dev: device in question.
  */
 void put_device(struct device *dev)
