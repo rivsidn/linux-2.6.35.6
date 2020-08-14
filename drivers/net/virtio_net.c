@@ -1,4 +1,5 @@
 /* A network driver using virtio.
+ * (通过virtio实现的网卡驱动)
  *
  * Copyright 2007 Rusty Russell <rusty@rustcorp.com.au> IBM Corporation
  *
@@ -557,6 +558,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 					0, skb);
 }
 
+//虚拟网卡发送函数
 static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);

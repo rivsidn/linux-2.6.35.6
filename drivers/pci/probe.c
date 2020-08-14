@@ -144,7 +144,7 @@ static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 	return size;
 }
 
-//返回PCI BAR的类型
+//解析 pci_bar_unknown 类型
 static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
 {
 	if ((bar & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
@@ -165,7 +165,6 @@ static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
  * @type: type of the BAR
  * @res: resource buffer to be filled in
  * @pos: BAR position in the config space
- * 	(配置空间中BAR的地址)
  *
  * Returns 1 if the BAR is 64-bit, or 0 if 32-bit.
  */
@@ -199,7 +198,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	if (l == 0xffffffff)
 		l = 0;
 
-	if (type == pci_bar_unknown) {
+	if (type == pci_bar_unknown) {		//pci_bar_unknow 需要重新查找类型
 		type = decode_bar(res, l);
 		res->flags |= pci_calc_resource_flags(l) | IORESOURCE_SIZEALIGN;
 		if (type == pci_bar_io) {
