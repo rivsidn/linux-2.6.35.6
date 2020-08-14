@@ -250,7 +250,7 @@
 #define PCI_PM_DATA_REGISTER	7	/* (??) */
 #define PCI_PM_SIZEOF		8
 
-/* AGP registers */
+/* AGP(Accelerated Graphics Port) registers */
 
 #define PCI_AGP_VERSION		2	/* BCD version number */
 #define PCI_AGP_RFU		3	/* Rest of capability flags */
