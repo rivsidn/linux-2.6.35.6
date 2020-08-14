@@ -12,13 +12,13 @@
 ## 编译busybox
 
 ```bash
-wget http://busybox.net/downloads/busybox-1.26.2.tar.bz2
-tar -jxvf busybox-1.26.2.tar.bz2
-make O=/home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/busybox-x86 defconfig
-make O=/home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/busybox-x86 menuconfig
-cd /home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/busybox-x86
-make
-make install
+$ wget http://busybox.net/downloads/busybox-1.26.2.tar.bz2
+$ tar -jxvf busybox-1.26.2.tar.bz2
+$ make O=/home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/busybox-x86 defconfig
+$ make O=/home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/busybox-x86 menuconfig
+$ cd /home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/busybox-x86
+$ make
+$ make install
 ```
 
 
@@ -26,10 +26,10 @@ make install
 ## 创建根文件系统
 
 ```bash
-mkdir -pv initramfs/x86-busybox
-cd initramfs/x86-busybox/
-mkdir -pv {bin,sbin,etc,proc,sys,usr/{bin,sbin}}
-cp -av ../../busybox-x86/_install/* ./
+$ mkdir -pv initramfs/x86-busybox
+$ cd initramfs/x86-busybox/
+$ mkdir -pv {bin,sbin,etc,proc,sys,usr/{bin,sbin}}
+$ cp -av ../../busybox-x86/_install/* ./
 ```
 
 
@@ -52,9 +52,9 @@ exec /bin/sh
 制作rootfs
 
 ```bash
- find . -print0 \
+$ find . -print0 \
     | cpio --null -ov --format=newc \
-    | gzip -9 > ../../obj/initramfs-busybox-x86.cpio.gz
+    | gzip -9 > ./initramfs-busybox-x86.cpio.gz
 ```
 
 
@@ -62,11 +62,13 @@ exec /bin/sh
 ## 启动调试(测试一)
 
 ```bash
-qemu-system-x86_64 -kernel ./arch/x86/boot/bzImage -initrd /home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/initramfs/x86-busybox/initramfs-busybox-x86.cpio.gz -smp 2 -s -S
+$ qemu-system-x86_64 -kernel ./arch/x86/boot/bzImage -initrd /home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/initramfs/x86-busybox/initramfs-busybox-x86.cpio.gz -smp 2 -s -S
 ```
 
-```
-gdb vmlinux
+
+
+```bash
+$ gdb vmlinux
 
 (gdb) target remote:1234
 (gdb) b start_kernel
@@ -77,7 +79,44 @@ gdb vmlinux
 
 ## qemu添加网卡
 
+```bash
+# 将网卡驱动添加到rootfs中（否则会因为没有网卡驱动识别不了网卡）
+$ make modules_install INSTALL_MOD_PATH=/home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/initramfs/x86-busybox
+$ cd Discovery/qemu_gdb/initramfs/x86-busybox/
 
+# 否则生成的ramfs文件太大，导致qemu不能正常启动
+$ find ./ -name "*.ko" -exec rm {} \;
+$ cd /home/rivsidn/codes/linux-2.6.35.6/
+$ cp drivers/net/e1000/e1000.ko Discovery/qemu_gdb/initramfs/x86-busybox/lib/modules/2.6.35.6+/kernel/drivers/net/e1000
+$ find . -print0 | cpio --null -ov --format=newc | gzip -9 > ./initramfs-busybox-x86.cpio.gz
+```
+
+
+
+```bash
+$ qemu-system-x86_64 -kernel ./arch/x86/boot/bzImage -initrd /home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/initramfs/x86-busybox/initramfs-busybox-x86.cpio.gz -net nic,model=e1000 -smp 2 -s -S
+
+# modprobe e1000 
+# ifconfig -a 
+```
+
+
+
+```bash
+$ gdb vmlinux
+
+(gdb) target remote:1234
+(gdb) b start_kernel
+(gdb) c
+```
+
+
+
+
+
+## TODO
+
+* ramfs 太大之后，qemu启动不起来
 
 
 
@@ -86,8 +125,4 @@ gdb vmlinux
 ## 参考资料
 
 * [从0开始构建linux系统](http://blog.chinaunix.net/uid-192452-id-5763135.html)
-
-
-
-
-
+* [qemu虚拟机与外部网络的通信](http://www.blog.chinaunix.net/uid-26061689-id-2981914.html)
