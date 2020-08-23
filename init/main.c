@@ -436,8 +436,6 @@ static noinline void __init_refok rest_init(void)
 	 * We need to spawn init first so that it obtains pid 1, however
 	 * the init task will end up wanting to create kthreads, which, if
 	 * we schedule it before we create kthreadd, will OOPS.
-	 * (首先我们需要创建init进程，所以init进程拥有进程号 1.
-	 * init进程最终想要创建线程，在创建线程之前我们调度她会造成OOPS.)
 	 */
 	kernel_thread(kernel_init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
@@ -820,6 +818,10 @@ static void __init do_pre_smp_initcalls(void)
 		do_one_initcall(*fn);
 }
 
+//运行进程
+//TODO：
+//1. 该种方式运行的进程是用户态进程还是内核进程？
+//2. 此时进程的UID为root，后边是如何变成自己的进程的？
 static void run_init_process(char *init_filename)
 {
 	argv_init[0] = init_filename;
@@ -828,6 +830,9 @@ static void run_init_process(char *init_filename)
 
 /* This is a non __init function. Force it to be noinline otherwise gcc
  * makes it inline to init() and it becomes part of init.text section
+ *
+ * 强制设置非内链函数，否则gcc会将该函数内链到init()中成为 init.text 段
+ * 的一部分
  */
 static noinline int init_post(void)
 	__releases(kernel_lock)

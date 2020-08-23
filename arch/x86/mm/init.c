@@ -378,6 +378,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 #endif
 }
 
+//释放掉init中的内存
 void free_initmem(void)
 {
 	free_init_pages("unused kernel memory",

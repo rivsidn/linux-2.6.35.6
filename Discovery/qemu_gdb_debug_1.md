@@ -83,6 +83,8 @@ $ gdb vmlinux
 # 将网卡驱动添加到rootfs中（否则会因为没有网卡驱动识别不了网卡）
 $ make modules_install INSTALL_MOD_PATH=/home/rivsidn/codes/linux-2.6.35.6/Discovery/qemu_gdb/initramfs/x86-busybox
 $ cd Discovery/qemu_gdb/initramfs/x86-busybox/
+# 也可以直接将驱动编译到内核中，这样就能直接识别，之后就用这种方式
+CONFIG_E1000=y
 
 # 否则生成的ramfs文件太大，导致qemu不能正常启动
 $ find ./ -name "*.ko" -exec rm {} \;
@@ -109,16 +111,6 @@ $ gdb vmlinux
 (gdb) b start_kernel
 (gdb) c
 ```
-
-
-
-
-
-## TODO
-
-* ramfs 太大之后，qemu启动不起来
-
-
 
 
 
