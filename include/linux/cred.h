@@ -92,17 +92,21 @@ struct thread_group_cred {
 
 /*
  * The security context of a task
+ * 任务的安全上下文
  *
  * The parts of the context break down into two categories:
+ * 该上下文分为两种类型:
  *
  *  (1) The objective context of a task.  These parts are used when some other
  *	task is attempting to affect this one.
+ *	任务客观上下文，该部分用于其他任务尝试修改该任务时。
  *
  *  (2) The subjective context.  These details are used when the task is acting
  *	upon another object, be that a file, a task, a key or whatever.
+ *	任务主管上下文，该部分细节用于任务修改其他对象时，比如说文件，任务等等。
  *
  * Note that some members of this structure belong to both categories - the
- * LSM security pointer for instance.
+ * LSM(Linux Security Modules) security pointer for instance.
  *
  * A task has two security pointers.  task->real_cred points to the objective
  * context that defines that task's actual details.  The objective part of this
