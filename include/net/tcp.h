@@ -1348,6 +1348,7 @@ static inline void tcp_insert_write_queue_after(struct sk_buff *skb,
 }
 
 /* Insert new before skb on the write queue of sk.  */
+/* 将新的报文插入到skb之前 */
 static inline void tcp_insert_write_queue_before(struct sk_buff *new,
 						  struct sk_buff *skb,
 						  struct sock *sk)

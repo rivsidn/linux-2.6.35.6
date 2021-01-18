@@ -40,6 +40,8 @@ qemu提供了4中跟外界通信的方式：
 
 ### User mode
 
+将simple.script 放到 /usr/share/udhcpc/ 下，改名为default.script
+
 ```bash
 $ cat init
 #!/bin/sh

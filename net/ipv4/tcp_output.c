@@ -2340,6 +2340,7 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 	struct sk_buff *skb;
 
 	/* NOTE: No TCP options attached and we never retransmit this. */
+	/* 此类报文没有TCP 选项，且我们从来不会重传该报文 */
 	skb = alloc_skb(MAX_TCP_HEADER, priority);
 	if (!skb) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPABORTFAILED);
@@ -2348,6 +2349,8 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, MAX_TCP_HEADER);
+
+	/* 构造一个没有数据的skb 包，将报文发送出去 */
 	tcp_init_nondata_skb(skb, tcp_acceptable_seq(sk),
 			     TCPCB_FLAG_ACK | TCPCB_FLAG_RST);
 	/* Send it off. */
