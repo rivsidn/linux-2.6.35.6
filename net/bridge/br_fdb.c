@@ -233,8 +233,13 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 }
 
 #if defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE)
-/* Interface used by ATM LANE hook to test
- * if an addr is on some other bridge port */
+/*
+ * Interface used by ATM LANE hook to test
+ * if an addr is on some other bridge port
+ */
+/*
+ * 测试硬件地址是否被使用，被使用则返回true
+ */
 int br_fdb_test_addr(struct net_device *dev, unsigned char *addr)
 {
 	struct net_bridge_fdb_entry *fdb;
@@ -374,6 +379,7 @@ int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 	return ret;
 }
 
+/* 没有vlan 参数 */
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr)
 {
