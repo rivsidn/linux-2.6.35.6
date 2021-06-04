@@ -1,3 +1,23 @@
+## 文件列表
+
+| 文件名          | 用途                                    |
+| --------------- | --------------------------------------- |
+| vlan_core.c     | 编译到内核中                            |
+|                 |                                         |
+| vlan.c          |                                         |
+| vlan_dev.c      |                                         |
+| vlan_netflink.c | `rtnl_link_register()` 这个函数的用法？ |
+|                 |                                         |
+| vlan_gvrp.c     | 暂时不关注                              |
+| vlanproc.c      | 暂时不关注                              |
+|                 |                                         |
+
+
+
+
+
+
+
 
 
 
@@ -27,3 +47,6 @@ brctl addif brvlan10 eth2
 
 
 
+## TODO
+
+* GRO 功能是做什么用的？

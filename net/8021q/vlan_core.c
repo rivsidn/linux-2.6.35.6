@@ -65,18 +65,21 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 	return 0;
 }
 
+/* 实际的物理设备 */
 struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {
 	return vlan_dev_info(dev)->real_dev;
 }
 EXPORT_SYMBOL(vlan_dev_real_dev);
 
+/* 获取该设备对应的vlan id */
 u16 vlan_dev_vlan_id(const struct net_device *dev)
 {
 	return vlan_dev_info(dev)->vlan_id;
 }
 EXPORT_SYMBOL(vlan_dev_vlan_id);
 
+/* 收包时候调用 */
 static gro_result_t
 vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 		unsigned int vlan_tci, struct sk_buff *skb)
