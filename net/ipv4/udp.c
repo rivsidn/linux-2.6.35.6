@@ -185,9 +185,12 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
 
 /**
  *  udp_lib_get_port  -  UDP/-Lite port lookup for IPv4 and IPv6
+ *                       UDP 的端口查询函数
  *
  *  @sk:          socket struct in question
+ *                对应的socket
  *  @snum:        port number to look up
+ *                要查询的端口号
  *  @saddr_comp:  AF-dependent comparison of bound local IP addresses
  *  @hash2_nulladdr: AF-dependant hash value in secondary hash chains,
  *                   with NULL address
@@ -202,6 +205,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 	int    error = 1;
 	struct net *net = sock_net(sk);
 
+	/* 设置了端口号，bind 时候调用 */
 	if (!snum) {
 		int low, high, remaining;
 		unsigned rand;
@@ -242,6 +246,8 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		} while (++first != last);
 		goto fail;
 	} else {
+		//没设置端口号，自动分配
+		//最开始的时候snum 为0 ，所以此时对应hash 表中的第一个slot
 		hslot = udp_hashslot(udptable, net, snum);
 		spin_lock_bh(&hslot->lock);
 		if (hslot->count > 10) {
@@ -277,12 +283,14 @@ found:
 	udp_sk(sk)->udp_port_hash = snum;
 	udp_sk(sk)->udp_portaddr_hash ^= snum;
 	if (sk_unhashed(sk)) {
+		/* 加入到hash 表中 */
 		sk_nulls_add_node_rcu(sk, &hslot->head);
 		hslot->count++;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
 		hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 		spin_lock(&hslot2->lock);
+		/* 加入到hash2 表中 */
 		hlist_nulls_add_head_rcu(&udp_sk(sk)->udp_portaddr_node,
 					 &hslot2->head);
 		hslot2->count++;
@@ -296,6 +304,7 @@ fail:
 }
 EXPORT_SYMBOL(udp_lib_get_port);
 
+/* 比较两个socket的本地IP地址是否一致 */
 static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 {
 	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
@@ -311,6 +320,7 @@ static unsigned int udp4_portaddr_hash(struct net *net, __be32 saddr,
 	return jhash_1word((__force u32)saddr, net_hash_mix(net)) ^ port;
 }
 
+/* socket 分配端口号 */
 int udp_v4_get_port(struct sock *sk, unsigned short snum)
 {
 	unsigned int hash2_nulladdr =
@@ -481,8 +491,10 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 		return result;
 	}
 begin:
+	/* 继续从hash 中查找 */
 	result = NULL;
 	badness = -1;
+	/* 遍历链表中的socket */
 	sk_nulls_for_each_rcu(sk, node, &hslot->head) {
 		score = compute_score(sk, net, saddr, hnum, sport,
 				      daddr, dport, dif);
@@ -496,10 +508,12 @@ begin:
 	 * not the expected one, we must restart lookup.
 	 * We probably met an item that was moved to another chain.
 	 */
+	/* 如果不相同，必须要重新查找 */
 	if (get_nulls_value(node) != slot)
 		goto begin;
 
 	if (result) {
+		/* 如果引用计数为0 则返回null */
 		if (unlikely(!atomic_inc_not_zero(&result->sk_refcnt)))
 			result = NULL;
 		else if (unlikely(compute_score(result, net, saddr, hnum, sport,
@@ -1236,6 +1250,7 @@ EXPORT_SYMBOL(udp_disconnect);
 
 void udp_lib_unhash(struct sock *sk)
 {
+	/* 并不是个hash 表，只是通过hash 函数来判断是否加入到了表中 */
 	if (sk_hashed(sk)) {
 		struct udp_table *udptable = sk->sk_prot->h.udp_table;
 		struct udp_hslot *hslot, *hslot2;
@@ -1246,6 +1261,7 @@ void udp_lib_unhash(struct sock *sk)
 
 		spin_lock_bh(&hslot->lock);
 		if (sk_nulls_del_node_init_rcu(sk)) {
+			/* 也就是说，同一个socket 在两个hash 表中都存在，需要分别删除 */
 			hslot->count--;
 			inet_sk(sk)->inet_num = 0;
 			sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
@@ -1493,6 +1509,7 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 		stack[count++] = sk;
 		sk = udp_v4_mcast_next(net, sk_nulls_next(sk), uh->dest,
 				       daddr, uh->source, saddr, dif);
+		/* 如果超过了能传递的最大个数，需要清空，重新设置 */
 		if (unlikely(count == ARRAY_SIZE(stack))) {
 			if (!sk)
 				break;
@@ -2147,8 +2164,10 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 		table->log = ilog2(UDP_HTABLE_SIZE_MIN);
 		table->mask = UDP_HTABLE_SIZE_MIN - 1;
 	}
+	/* 紧跟在hash 之后 */
 	table->hash2 = table->hash + (table->mask + 1);
 	for (i = 0; i <= table->mask; i++) {
+		/* 表头初始化 */
 		INIT_HLIST_NULLS_HEAD(&table->hash[i].head, i);
 		table->hash[i].count = 0;
 		spin_lock_init(&table->hash[i].lock);
@@ -2164,6 +2183,7 @@ void __init udp_init(void)
 {
 	unsigned long nr_pages, limit;
 
+	/* 初始化udp 表 */
 	udp_table_init(&udp_table, "UDP");
 	/* Set the pressure threshold up by the same strategy of TCP. It is a
 	 * fraction of global memory that is up to 1/2 at 256 MB, decreasing

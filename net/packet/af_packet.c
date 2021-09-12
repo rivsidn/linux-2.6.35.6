@@ -1487,6 +1487,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 	}
 
 	spin_lock_bh(&net->packet.sklist_lock);
+	/* sk 通过 sk->sk_node 加入到net->packet.sklist 表中 */
 	sk_add_node_rcu(sk, &net->packet.sklist);
 	sock_prot_inuse_add(net, &packet_proto, 1);
 	spin_unlock_bh(&net->packet.sklist_lock);

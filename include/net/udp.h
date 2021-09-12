@@ -55,6 +55,7 @@ struct udp_skb_cb {
  *
  *	@head:	head of list of sockets
  *	@count:	number of sockets in 'head' list
+ *		该链表中socket 的个数
  *	@lock:	spinlock protecting changes to head/count
  */
 struct udp_hslot {
@@ -67,12 +68,15 @@ struct udp_hslot {
  *	struct udp_table - UDP table
  *
  *	@hash:	hash table, sockets are hashed on (local port)
+ *		本地端口，也就是目的端口
  *	@hash2:	hash table, sockets are hashed on (local port, local address)
+ *		本地端口，本地地址
  *	@mask:	number of slots in hash tables, minus 1
  *	@log:	log2(number of slots in hash table)
  */
 struct udp_table {
-	struct udp_hslot	*hash;
+	/* 这两个hash 表之间什么关系 */
+	struct udp_hslot	*hash;		//通过slot 找到对应的hash slot
 	struct udp_hslot	*hash2;
 	unsigned int		mask;
 	unsigned int		log;

@@ -5099,6 +5099,8 @@ __setup("hashdist=", set_hashdist);
  * - it is assumed that the hash table must contain an exact power-of-2
  *   quantity of entries
  * - limit is the number of hash buckets, not the total allocation size
+ *
+ *   限制是hash 桶的大小，不是申请内存的大小
  */
 void *__init alloc_large_system_hash(const char *tablename,
 				     unsigned long bucketsize,

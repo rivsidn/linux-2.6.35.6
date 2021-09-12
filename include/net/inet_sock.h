@@ -94,8 +94,8 @@ struct rtable;
  *
  * @sk - ancestor class
  * @pinet6 - pointer to IPv6 control block
- * @inet_daddr - Foreign IPv4 addr
- * @inet_rcv_saddr - Bound local IPv4 addr
+ * @inet_daddr - Foreign IPv4 addr(对端IP地址)
+ * @inet_rcv_saddr - Bound local IPv4 addr(绑定的本地地址)
  * @inet_dport - Destination port
  * @inet_num - Local port
  * @inet_saddr - Sending source
