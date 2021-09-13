@@ -125,6 +125,12 @@ EXPORT_SYMBOL(udp_memory_allocated);
 #define MAX_UDP_PORTS 65536
 #define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN)
 
+/*
+ * @net		对应的net
+ * @num 	要查找的端口号
+ * @hslot	对应的hash 表slot
+ * @bitmap	
+ */
 static int udp_lib_lport_inuse(struct net *net, __u16 num,
 			       const struct udp_hslot *hslot,
 			       unsigned long *bitmap,
@@ -137,8 +143,8 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 	struct hlist_nulls_node *node;
 
 	sk_nulls_for_each(sk2, node, &hslot->head)
-		if (net_eq(sock_net(sk2), net) &&
-		    sk2 != sk &&
+		if (net_eq(sock_net(sk2), net) &&	//处于同一个namespace
+		    sk2 != sk &&			//不是同一个socket
 		    (bitmap || udp_sk(sk2)->udp_port_hash == num) &&
 		    (!sk2->sk_reuse || !sk->sk_reuse) &&
 		    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if ||
@@ -205,26 +211,29 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 	int    error = 1;
 	struct net *net = sock_net(sk);
 
-	/* 设置了端口号，bind 时候调用 */
+	//snum为 0, 此时客户端程序没设置端口号，自动分配
 	if (!snum) {
 		int low, high, remaining;
 		unsigned rand;
 		unsigned short first, last;
+		/* 位图大小是如何确定的？ */
 		DECLARE_BITMAP(bitmap, PORTS_PER_CHAIN);
 
 		inet_get_local_port_range(&low, &high);
 		remaining = (high - low) + 1;
 
 		rand = net_random();
+		/* 怎么理解这个地方的处理？ */
 		first = (((u64)rand * remaining) >> 32) + low;
 		/*
 		 * force rand to be an odd multiple of UDP_HTABLE_SIZE
 		 */
 		rand = (rand | 1) * (udptable->mask + 1);
+		/* 此时的last 是不是会大于最大的port？ */
 		last = first + udptable->mask + 1;
 		do {
 			hslot = udp_hashslot(udptable, net, first);
-			bitmap_zero(bitmap, PORTS_PER_CHAIN);
+			bitmap_zero(bitmap, PORTS_PER_CHAIN);		//清空位图
 			spin_lock_bh(&hslot->lock);
 			udp_lib_lport_inuse(net, snum, hslot, bitmap, sk,
 					    saddr_comp, udptable->log);
@@ -243,11 +252,10 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 				snum += rand;
 			} while (snum != first);
 			spin_unlock_bh(&hslot->lock);
-		} while (++first != last);
+		} while (++first != last);		//理解这个边界条件，hash表的使用
 		goto fail;
 	} else {
-		//没设置端口号，自动分配
-		//最开始的时候snum 为0 ，所以此时对应hash 表中的第一个slot
+		/* 设置了端口号，bind 时候调用 */
 		hslot = udp_hashslot(udptable, net, snum);
 		spin_lock_bh(&hslot->lock);
 		if (hslot->count > 10) {
@@ -274,11 +282,13 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 				goto found;
 		}
 scan_primary_hash:
+		/* 查找尚未使用的端口号 */
 		if (udp_lib_lport_inuse(net, snum, hslot, NULL, sk,
 					saddr_comp, 0))
 			goto fail_unlock;
 	}
 found:
+	//找到了加入到hash表中
 	inet_sk(sk)->inet_num = snum;
 	udp_sk(sk)->udp_port_hash = snum;
 	udp_sk(sk)->udp_portaddr_hash ^= snum;
@@ -288,9 +298,9 @@ found:
 		hslot->count++;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
+		/* 加入到hash2 表中 */
 		hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 		spin_lock(&hslot2->lock);
-		/* 加入到hash2 表中 */
 		hlist_nulls_add_head_rcu(&udp_sk(sk)->udp_portaddr_node,
 					 &hslot2->head);
 		hslot2->count++;
@@ -298,6 +308,7 @@ found:
 	}
 	error = 0;
 fail_unlock:
+	//没找到，返回失败
 	spin_unlock_bh(&hslot->lock);
 fail:
 	return error;
@@ -2140,6 +2151,7 @@ static int __init set_uhash_entries(char *str)
 }
 __setup("uhash_entries=", set_uhash_entries);
 
+/* 这部分hash 表的初始化？ */
 void __init udp_table_init(struct udp_table *table, const char *name)
 {
 	unsigned int i;

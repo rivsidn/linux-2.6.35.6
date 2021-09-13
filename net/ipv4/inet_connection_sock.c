@@ -40,11 +40,11 @@ struct local_ports sysctl_local_ports __read_mostly = {
 unsigned long *sysctl_local_reserved_ports;
 EXPORT_SYMBOL(sysctl_local_reserved_ports);
 
-/* 这里的函数是做什么用的？ */
 void inet_get_local_port_range(int *low, int *high)
 {
 	unsigned seq;
 	do {
+		/* 这个函数是做什么用的？ */
 		seq = read_seqbegin(&sysctl_local_ports.lock);
 
 		*low = sysctl_local_ports.range[0];
