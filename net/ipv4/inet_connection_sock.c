@@ -44,7 +44,12 @@ void inet_get_local_port_range(int *low, int *high)
 {
 	unsigned seq;
 	do {
-		/* 这个函数是做什么用的？ */
+		/*
+		 * seqlock 使用。
+		 * seqlock 使用过程中，写动作有更高优先级，当执行写动作
+		 * 时候，无论是否有读动作正在执行，都会坚持执行写操作，
+		 * 所以在读取结束之后会判断，是否需要重新读取。
+		 */
 		seq = read_seqbegin(&sysctl_local_ports.lock);
 
 		*low = sysctl_local_ports.range[0];

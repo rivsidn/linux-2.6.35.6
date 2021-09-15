@@ -44,6 +44,8 @@ extern struct task_struct *__switch_to(struct task_struct *,
  * to devices.
  *
  * This implementation only contains a compiler barrier.
+ *
+ * 通过编译器屏障实现，确保屏障之前的代码不会在屏障之后执行
  */
 
 #define mb()	asm volatile ("": : :"memory")

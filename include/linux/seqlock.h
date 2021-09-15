@@ -57,6 +57,7 @@ typedef struct {
  * Acts like a normal spin_lock/unlock.
  * Don't need preempt_disable() because that is in the spin_lock already.
  */
+/* 理解一下这里的读写屏障为什么要这样加？ */
 static inline void write_seqlock(seqlock_t *sl)
 {
 	spin_lock(&sl->lock);
@@ -91,7 +92,7 @@ repeat:
 	ret = sl->sequence;
 	smp_rmb();
 	if (unlikely(ret & 1)) {
-		cpu_relax();
+		cpu_relax();		//cpu空转
 		goto repeat;
 	}
 
