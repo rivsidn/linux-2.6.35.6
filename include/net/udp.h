@@ -75,7 +75,6 @@ struct udp_hslot {
  *	@log:	log2(number of slots in hash table)
  */
 struct udp_table {
-	/* 这两个hash 表之间什么关系 */
 	struct udp_hslot	*hash;		//通过slot 找到对应的hash slot
 	struct udp_hslot	*hash2;
 	unsigned int		mask;

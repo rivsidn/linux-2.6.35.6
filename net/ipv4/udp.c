@@ -129,7 +129,10 @@ EXPORT_SYMBOL(udp_memory_allocated);
  * @net		对应的net
  * @num 	要查找的端口号
  * @hslot	对应的hash 表slot
- * @bitmap	
+ * @bitmap	位图，保存当前已经使用的端口号
+ * @sk		要查找的socket
+ * @saddr_comp	比较函数
+ * @log		对应的大小
  */
 static int udp_lib_lport_inuse(struct net *net, __u16 num,
 			       const struct udp_hslot *hslot,
@@ -142,18 +145,20 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 	struct sock *sk2;
 	struct hlist_nulls_node *node;
 
+	/* 依次遍历所有的socket */
 	sk_nulls_for_each(sk2, node, &hslot->head)
 		if (net_eq(sock_net(sk2), net) &&	//处于同一个namespace
 		    sk2 != sk &&			//不是同一个socket
 		    (bitmap || udp_sk(sk2)->udp_port_hash == num) &&
 		    (!sk2->sk_reuse || !sk->sk_reuse) &&
-		    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if ||
-		     sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
+		    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if || sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
 		    (*saddr_comp)(sk, sk2)) {
 			if (bitmap)
+				/* 保存已经使用了的端口号掩码 */
 				__set_bit(udp_sk(sk2)->udp_port_hash >> log,
 					  bitmap);
 			else
+				/* 返回1 表示已经被使用了 */
 				return 1;
 		}
 	return 0;
@@ -216,20 +221,22 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		int low, high, remaining;
 		unsigned rand;
 		unsigned short first, last;
-		/* 位图大小是如何确定的？ */
+		/* 每条链的端口号个数 */
 		DECLARE_BITMAP(bitmap, PORTS_PER_CHAIN);
 
 		inet_get_local_port_range(&low, &high);
 		remaining = (high - low) + 1;
 
+		/*
+		 * ((u64)rand * remaining) >> 32
+		 * 将一个32 位的随机数等比缩小到remaining 范围
+		 */
 		rand = net_random();
-		/* 怎么理解这个地方的处理？ */
 		first = (((u64)rand * remaining) >> 32) + low;
 		/*
 		 * force rand to be an odd multiple of UDP_HTABLE_SIZE
 		 */
 		rand = (rand | 1) * (udptable->mask + 1);
-		/* 此时的last 是不是会大于最大的port？ */
 		last = first + udptable->mask + 1;
 		do {
 			hslot = udp_hashslot(udptable, net, first);
@@ -245,20 +252,27 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 			 * give us randomization and full range coverage.
 			 */
 			do {
-				if (low <= snum && snum <= high &&
-				    !test_bit(snum >> udptable->log, bitmap) &&
-				    !inet_is_reserved_local_port(snum))
+				if (low <= snum && snum <= high &&			//范围内
+				    !test_bit(snum >> udptable->log, bitmap) &&		//没被使用
+				    !inet_is_reserved_local_port(snum))			//不是保留端口号
 					goto found;
+				/*
+				 * 此时的rand 为UDP_HTABLE_SIZE 的奇数倍，所以相加之后
+				 * 必定处于同一个slot 内；
+				 * 由于此时rand 为奇数，所以可以完全遍历整个port 号.
+				 */
 				snum += rand;
 			} while (snum != first);
 			spin_unlock_bh(&hslot->lock);
-		} while (++first != last);		//理解这个边界条件，hash表的使用
+		} while (++first != last);
+		/* 完全遍历了整个端口号之后，如果没找到，则跳转到失败执行 */
 		goto fail;
 	} else {
 		/* 设置了端口号，bind 时候调用 */
 		hslot = udp_hashslot(udptable, net, snum);
 		spin_lock_bh(&hslot->lock);
 		if (hslot->count > 10) {
+			/* 查找hash2 的时候，对应确切的IP地址和ANY 需要查找两次 */
 			int exist;
 			unsigned int slot2 = udp_sk(sk)->udp_portaddr_hash ^ snum;
 
@@ -315,7 +329,11 @@ fail:
 }
 EXPORT_SYMBOL(udp_lib_get_port);
 
-/* 比较两个socket的本地IP地址是否一致 */
+/*
+ * 比较两个socket的本地IP地址是否一致
+ * 一致返回 true
+ * 不一致返回 false
+ */
 static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 {
 	struct inet_sock *inet1 = inet_sk(sk1), *inet2 = inet_sk(sk2);
@@ -2159,11 +2177,11 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 	if (!CONFIG_BASE_SMALL)
 		table->hash = alloc_large_system_hash(name,
 			2 * sizeof(struct udp_hslot),
-			uhash_entries,
+			uhash_entries,		//0
 			21, /* one slot per 2 MB */
 			0,
-			&table->log,
-			&table->mask,
+			&table->log,		//10
+			&table->mask,		//1023=2^10-1
 			64 * 1024);
 	/*
 	 * Make sure hash table has the minimum size

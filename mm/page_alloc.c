@@ -5101,6 +5101,13 @@ __setup("hashdist=", set_hashdist);
  * - limit is the number of hash buckets, not the total allocation size
  *
  *   限制是hash 桶的大小，不是申请内存的大小
+ *
+ * 申请大小为 (bucketsize << _hash_shift) 的内存，
+ * 此时 _hash_mask = (1 << _hash_shift)。
+ *
+ * @tablename 表的名称
+ * @bucketsizte 表中元素的大小
+ * @numentries
  */
 void *__init alloc_large_system_hash(const char *tablename,
 				     unsigned long bucketsize,
@@ -5118,6 +5125,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 	/* allow the kernel cmdline to have a say */
 	if (!numentries) {
 		/* round applicable memory size up to nearest megabyte */
+		/* 1M 字节向上取整 */
 		numentries = nr_kernel_pages;
 		numentries += (1UL << (20 - PAGE_SHIFT)) - 1;
 		numentries >>= 20 - PAGE_SHIFT;
@@ -5153,6 +5161,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 
 	log2qty = ilog2(numentries);
 
+	/* 申请内存，直至申请成功 */
 	do {
 		size = bucketsize << log2qty;
 		if (flags & HASH_EARLY)

@@ -99,6 +99,8 @@ static inline int __test_and_change_bit(int nr,
  * test_bit - Determine whether a bit is set
  * @nr: bit number to test
  * @addr: Address to start counting from
+ *
+ * 判断标识位是否设置
  */
 static inline int test_bit(int nr, const volatile unsigned long *addr)
 {
