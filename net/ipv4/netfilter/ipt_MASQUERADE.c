@@ -79,6 +79,7 @@ masquerade_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	nat->masq_index = par->out->ifindex;
 
 	/* Transfer from original range. */
+	/* 将获取的数据组织成 struct nf_nat_range{}，传递给nf_nat_setup_info() */
 	newrange = ((struct nf_nat_range)
 		{ mr->range[0].flags | IP_NAT_RANGE_MAP_IPS,
 		  newsrc, newsrc,

@@ -159,6 +159,7 @@ static unsigned int ipv4_conntrack_local(unsigned int hooknum,
 
 /* Connection tracking may drop packets, but never alters them, so
    make it the first hook. */
+/* 链接跟踪可能会丢弃报文，但不会修改报文 */
 static struct nf_hook_ops ipv4_conntrack_ops[] __read_mostly = {
 	{
 		.hook		= ipv4_conntrack_in,

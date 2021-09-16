@@ -68,21 +68,25 @@ static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
 {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #if !defined(CONFIG_NF_NAT) && !defined(CONFIG_NF_NAT_MODULE)
-	/* Previously seen (loopback)?  Ignore.  Do this before
-	   fragment check. */
+	/* 如果定义了链接跟踪但是没定义NAT */
+	/* Previously seen (loopback)?  Ignore.  Do this before fragment check. */
+	/* 这个地方的操作不是很理解？ */
 	if (skb->nfct && !nf_ct_is_template((struct nf_conn *)skb->nfct))
 		return NF_ACCEPT;
 #endif
 #endif
 	/* Gather fragments. */
+	/* 分片包，除最后一个分片包外都设置了IP_MF 标识位，最后一个分片包的IP_OFFSET 不为0 */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 		enum ip_defrag_users user = nf_ct_defrag_user(hooknum, skb);
 		if (nf_ct_ipv4_gather_frags(skb, user))
 			return NF_STOLEN;
 	}
+	/* 分片包重新组合之后，返回最后一个完整的包 */
 	return NF_ACCEPT;
 }
 
+/* 为什么钩子函数需要挂载在这两个地方，如何理解挂载在 LOCAL_OUT？ */
 static struct nf_hook_ops ipv4_defrag_ops[] = {
 	{
 		.hook		= ipv4_conntrack_defrag,
@@ -102,6 +106,7 @@ static struct nf_hook_ops ipv4_defrag_ops[] = {
 
 static int __init nf_defrag_init(void)
 {
+	/* 挂载钩子函数 */
 	return nf_register_hooks(ipv4_defrag_ops, ARRAY_SIZE(ipv4_defrag_ops));
 }
 
