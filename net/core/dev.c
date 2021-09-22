@@ -2481,6 +2481,8 @@ enqueue:
  *	the upper (protocol) levels to process.  It always succeeds. The buffer
  *	may be dropped during processing for congestion control or by the
  *	protocol layers.
+ *	该函数从设备驱动中接收报文，并将报文放到上层协议层中处理。它总会成功。
+ *	报文可能会因为上层协议的阻塞控制算法将报文丢弃。
  *
  *	return values:
  *	NET_RX_SUCCESS	(no congestion)
@@ -2488,6 +2490,10 @@ enqueue:
  *
  */
 
+/*
+ * 报文处理过程全部都在软中断中进行，该函数为非软中断的报文处理函数，由该函数将
+ * 报文放到处理队列中，后续由软中断处理
+ */
 int netif_rx(struct sk_buff *skb)
 {
 	int ret;
@@ -2519,6 +2525,7 @@ int netif_rx(struct sk_buff *skb)
 #else
 	{
 		unsigned int qtail;
+		/* 将报文放到处理队列中，并没有处理 */
 		ret = enqueue_to_backlog(skb, get_cpu(), &qtail);
 		put_cpu();
 	}
@@ -2527,10 +2534,12 @@ int netif_rx(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_rx);
 
+/* 用于loopback 等不会产生irq 的设备收包，暂时没深究实现 */
 int netif_rx_ni(struct sk_buff *skb)
 {
 	int err;
 
+	/* 禁止抢占 */
 	preempt_disable();
 	err = netif_rx(skb);
 	if (local_softirq_pending())
@@ -2950,6 +2959,9 @@ out:
  *
  *	This function may only be called from softirq context and interrupts
  *	should be enabled.
+ *	软中断上下文中调用该函数，此时中断应该是使能的。
+ *	软中断中调用该函数，所以此处可以直接处理报文，而netif_rx() 只能在先
+ *	将报文放到处理队列中，后续处理。
  *
  *	Return values (usually ignored):
  *	NET_RX_SUCCESS: no congestion

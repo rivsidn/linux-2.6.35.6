@@ -4497,8 +4497,10 @@ out:
 /*
  * Warning : rtl8169_rx_interrupt() might be called :
  * 1) from NAPI (softirq) context
+ *    软中断上下文中调用
  *	(polling = 1 : we should call netif_receive_skb())
  * 2) from process context (rtl8169_reset_task())
+ *    进程上下文中调用
  *	(polling = 0 : we must call netif_rx() instead)
  */
 static int rtl8169_rx_interrupt(struct net_device *dev,
