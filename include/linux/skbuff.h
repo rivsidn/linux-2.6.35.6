@@ -385,6 +385,11 @@ struct sk_buff {
 	__u8			ndisc_nodetype:2,
 				deliver_no_wcard:1;
 #else
+	/*
+	 * packet_type 中的 dev 为 NULL 时表示是通配符，该标识位用于标识
+	 * 是否将NULL 按通配符匹配.
+	 * 默认没设置该标识位的时候是按照通配符匹配的.
+	 */
 	__u8			deliver_no_wcard:1;
 #endif
 	kmemcheck_bitfield_end(flags2);

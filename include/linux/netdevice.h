@@ -1204,7 +1204,7 @@ struct napi_gro_cb {
 
 struct packet_type {
 	__be16			type;	/* This is really htons(ether_type). */
-	struct net_device	*dev;	/* NULL is wildcarded here	     */
+	struct net_device	*dev;	/* NULL is wildcarded herei(NULL 在此处是通配符)     */
 	int			(*func) (struct sk_buff *,
 					 struct net_device *,
 					 struct packet_type *,

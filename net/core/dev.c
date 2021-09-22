@@ -2827,10 +2827,12 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	if (!netdev_tstamp_prequeue)
 		net_timestamp_check(skb);
 
+	/* 处理vlan 报文，暂时略过 */
 	if (vlan_tx_tag_present(skb) && vlan_hwaccel_do_receive(skb))
 		return NET_RX_SUCCESS;
 
 	/* if we've gotten here through NAPI, check netpoll */
+	/* NAPI 相关，暂时略过 */
 	if (netpoll_receive_skb(skb))
 		return NET_RX_DROP;
 
@@ -2875,6 +2877,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	}
 #endif
 
+	/* tcpdump 抓包钩子函数在ptype_all[] 中 */
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
 		if (ptype->dev == null_or_orig || ptype->dev == skb->dev ||
 		    ptype->dev == orig_dev) {
@@ -3839,6 +3842,7 @@ static const struct file_operations softnet_seq_fops = {
 	.release = seq_release,
 };
 
+/* proc 文件系统实现 */
 static void *ptype_get_idx(loff_t pos)
 {
 	struct packet_type *pt = NULL;
@@ -5912,6 +5916,10 @@ static int __init net_dev_init(void)
 	if (netdev_kobject_init())
 		goto out;
 
+	/*
+	 * ptype_all 和 ptype_base 都用来注册二层协议处理函数，当跟踪的二层
+	 * 协议为ETH_P_ALL 时，将报文处理钩子函数添加到 ptype_all 中。
+	 */
 	INIT_LIST_HEAD(&ptype_all);
 	for (i = 0; i < PTYPE_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&ptype_base[i]);
