@@ -181,13 +181,13 @@ struct neigh_table arp_tbl = {
 	.parms = {
 		.tbl =			&arp_tbl,
 		.base_reachable_time =	30 * HZ,
-		.retrans_time =	1 * HZ,
-		.gc_staletime =	60 * HZ,
-		.reachable_time =		30 * HZ,
+		.retrans_time =		1 * HZ,
+		.gc_staletime =		60 * HZ,
+		.reachable_time =	30 * HZ,
 		.delay_probe_time =	5 * HZ,
 		.queue_len =		3,
-		.ucast_probes =	3,
-		.mcast_probes =	3,
+		.ucast_probes =		3,
+		.mcast_probes =		3,
 		.anycast_delay =	1 * HZ,
 		.proxy_delay =		(8 * HZ) / 10,
 		.proxy_qlen =		64,
@@ -228,6 +228,7 @@ static u32 arp_hash(const void *pkey, const struct net_device *dev)
 	return jhash_2words(*(u32 *)pkey, dev->ifindex, arp_tbl.hash_rnd);
 }
 
+/* ARP构造器 */
 static int arp_constructor(struct neighbour *neigh)
 {
 	__be32 addr = *(__be32*)neigh->primary_key;
@@ -754,6 +755,7 @@ static int arp_process(struct sk_buff *skb)
 
 	/* arp_rcv below verifies the ARP header and verifies the device
 	 * is ARP'able.
+	 * 下边的代码用于确认ARP头部并且用于确认设备可以处理ARP
 	 */
 
 	if (in_dev == NULL)
@@ -798,6 +800,7 @@ static int arp_process(struct sk_buff *skb)
 	}
 
 	/* Understand only these message types */
+	/* 只处理这两种类型的消息 */
 
 	if (arp->ar_op != htons(ARPOP_REPLY) &&
 	    arp->ar_op != htons(ARPOP_REQUEST))
@@ -805,6 +808,7 @@ static int arp_process(struct sk_buff *skb)
 
 /*
  *	Extract fields
+ *	报文解析
  */
 	arp_ptr= (unsigned char *)(arp+1);
 	sha	= arp_ptr;
@@ -853,20 +857,27 @@ static int arp_process(struct sk_buff *skb)
 		goto out;
 	}
 
+	/*
+	 * 处理请求报文
+	 * ip_route_input_noref() 处理只能保证能找到路由不能保证路由上本机
+	 */
 	if (arp->ar_op == htons(ARPOP_REQUEST) &&
 	    ip_route_input_noref(skb, tip, sip, 0, dev) == 0) {
 
 		rt = skb_rtable(skb);
 		addr_type = rt->rt_type;
 
+		/* 查询本机ARP */
 		if (addr_type == RTN_LOCAL) {
 			int dont_send = 0;
 
+			/* 是否发送arp */
 			if (!dont_send)
 				dont_send |= arp_ignore(in_dev,sip,tip);
 			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
 				dont_send |= arp_filter(sip,tip,dev);
 			if (!dont_send) {
+				/* 获取邻居表项，参数arp表、源mac、源IP、设备 */
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n) {
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
@@ -874,7 +885,7 @@ static int arp_process(struct sk_buff *skb)
 				}
 			}
 			goto out;
-		} else if (IN_DEV_FORWARD(in_dev)) {
+		} else if (IN_DEV_FORWARD(in_dev)) {	/* ARP目的地址非本机 */
 			if (addr_type == RTN_UNICAST  &&
 			    (arp_fwd_proxy(in_dev, dev, rt) ||
 			     arp_fwd_pvlan(in_dev, dev, rt, sip, tip) ||
@@ -950,6 +961,7 @@ static void parp_redo(struct sk_buff *skb)
 
 /*
  *	Receive an arp request from the device layer.
+ *	arp 处理入口函数
  */
 
 static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
@@ -974,6 +986,7 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 
+	/* netfilter钩子函数处理 */
 	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN, skb, dev, NULL, arp_process);
 
 freeskb:
@@ -1282,7 +1295,9 @@ void __init arp_init(void)
 {
 	neigh_table_init(&arp_tbl);
 
+	/* 挂载协议处理钩子函数 */
 	dev_add_pack(&arp_packet_type);
+	/* proc文件系统初始化 */
 	arp_proc_init();
 #ifdef CONFIG_SYSCTL
 	neigh_sysctl_register(NULL, &arp_tbl.parms, "ipv4", NULL);

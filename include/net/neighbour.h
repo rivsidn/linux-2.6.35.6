@@ -94,7 +94,7 @@ struct neighbour {
 	struct neighbour	*next;
 	struct neigh_table	*tbl;
 	struct neigh_parms	*parms;
-	struct net_device		*dev;
+	struct net_device	*dev;
 	unsigned long		used;
 	unsigned long		confirmed;
 	unsigned long		updated;
@@ -156,7 +156,7 @@ struct neigh_table {
 	int			gc_thresh1;
 	int			gc_thresh2;
 	int			gc_thresh3;
-	unsigned long		last_flush;
+	unsigned long		last_flush;		//最近一次刷新的时间
 	struct delayed_work	gc_work;
 	struct timer_list 	proxy_timer;
 	struct sk_buff_head	proxy_queue;

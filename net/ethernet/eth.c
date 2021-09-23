@@ -235,6 +235,8 @@ EXPORT_SYMBOL(eth_header_parse);
  * @neigh: source neighbour
  * @hh: destination cache entry
  * Create an Ethernet header template from the neighbour.
+ *
+ * 从邻居表项中创建一个以太网头部模板
  */
 int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
 {
@@ -248,6 +250,7 @@ int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
 	if (type == htons(ETH_P_802_3))
 		return -1;
 
+	/* 协议类型，源mac，目的mac */
 	eth->h_proto = type;
 	memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 	memcpy(eth->h_dest, neigh->ha, ETH_ALEN);
@@ -333,6 +336,8 @@ const struct header_ops eth_header_ops ____cacheline_aligned = {
  * ether_setup - setup Ethernet network device
  * @dev: network device
  * Fill in the fields of the device structure with Ethernet-generic values.
+ *
+ * 创建以太网网卡的时候会调用该函数
  */
 void ether_setup(struct net_device *dev)
 {

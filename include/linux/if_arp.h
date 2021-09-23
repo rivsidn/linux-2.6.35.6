@@ -132,6 +132,7 @@ struct arpreq_old {
 
 /*
  *	This structure defines an ethernet arp header.
+ *	该结构体定义了一个arp 头，注意此处只到op
  */
 
 struct arphdr {

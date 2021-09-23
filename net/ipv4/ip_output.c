@@ -202,6 +202,11 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
+	/*
+	 * 路由发包的时候，需要依赖邻居信息.
+	 * 如果此时有二层头缓存就直接调用 neigh_hh_output()，如果没有则调用
+	 * dst->neighbour->output().
+	 */
 	if (dst->hh)
 		return neigh_hh_output(dst->hh, skb);
 	else if (dst->neighbour)
