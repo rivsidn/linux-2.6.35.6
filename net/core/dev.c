@@ -3945,6 +3945,7 @@ static const struct seq_operations ptype_seq_ops = {
 	.show  = ptype_seq_show,
 };
 
+/* open 文件时调用该函数 */
 static int ptype_seq_open(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &ptype_seq_ops,

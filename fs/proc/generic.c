@@ -549,6 +549,7 @@ static const struct inode_operations proc_dir_inode_operations = {
 	.setattr	= proc_notify_change,
 };
 
+/* 传递参数: 父目录，注册文件 */
 static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp)
 {
 	unsigned int i;
@@ -592,6 +593,7 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 	return 0;
 }
 
+/* 参数分别为: 文件所处目录、名称、权限、连接数 */
 static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 					  const char *name,
 					  mode_t mode,
@@ -745,6 +747,7 @@ struct proc_dir_entry *proc_create_data(const char *name, mode_t mode,
 		nlink = 1;
 	}
 
+	/* 传递过去的参数: 父节点、名称、权限、链接数 */
 	pde = __proc_create(&parent, name, mode, nlink);
 	if (!pde)
 		goto out;

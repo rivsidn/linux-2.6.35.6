@@ -42,6 +42,7 @@ static const struct file_operations uptime_proc_fops = {
 
 static int __init proc_uptime_init(void)
 {
+	/* 名称、权限、父文件、操作 */
 	proc_create("uptime", 0, NULL, &uptime_proc_fops);
 	return 0;
 }
