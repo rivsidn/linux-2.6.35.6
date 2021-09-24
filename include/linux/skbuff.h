@@ -1026,6 +1026,7 @@ static inline void __skb_queue_head(struct sk_buff_head *list,
 
 /**
  *	__skb_queue_tail - queue a buffer at the list tail
+ *	                 - 将报文放到链表尾部
  *	@list: list to use
  *	@newsk: buffer to queue
  *

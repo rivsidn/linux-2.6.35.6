@@ -776,6 +776,7 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 
 /**
  * mod_timer - modify a timer's timeout
+ *           - 修改定时器超时时间
  * @timer: the timer to be modified
  * @expires: new timeout in jiffies
  *

@@ -160,6 +160,7 @@ static const struct neigh_ops arp_direct_ops = {
 	.queue_xmit =		dev_queue_xmit,
 };
 
+/* 特定的物理设备会调用这组函数处理 */
 const struct neigh_ops arp_broken_ops = {
 	.family =		AF_INET,
 	.solicit =		arp_solicit,
@@ -221,7 +222,6 @@ int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 	}
 	return -EINVAL;
 }
-
 
 static u32 arp_hash(const void *pkey, const struct net_device *dev)
 {
@@ -488,6 +488,7 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 		n->used = jiffies;
 		if (n->nud_state&NUD_VALID || neigh_event_send(n, skb) == 0) {
 			read_lock_bh(&n->lock);
+			/* 此处给邻居的ha 赋值 */
 			memcpy(haddr, n->ha, dev->addr_len);
 			read_unlock_bh(&n->lock);
 			neigh_release(n);
@@ -811,7 +812,7 @@ static int arp_process(struct sk_buff *skb)
  *	报文解析
  */
 	arp_ptr= (unsigned char *)(arp+1);
-	sha	= arp_ptr;
+	sha	= arp_ptr;		//此处的sha 是对端的mac 地址
 	arp_ptr += dev->addr_len;
 	memcpy(&sip, arp_ptr, 4);
 	arp_ptr += 4;
