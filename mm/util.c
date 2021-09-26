@@ -56,6 +56,7 @@ EXPORT_SYMBOL(kstrndup);
 
 /**
  * kmemdup - duplicate region of memory
+ *         - 复制一部分内存
  *
  * @src: memory region to duplicate
  * @len: memory region length

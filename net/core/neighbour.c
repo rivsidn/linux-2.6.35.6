@@ -1049,7 +1049,6 @@ static void neigh_update_hhs(struct neighbour *neigh)
    调用者必须获取表项的引用计数.
  */
 
-/* TODO: next... */
 int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		 u32 flags)
 {
@@ -1204,12 +1203,18 @@ struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 }
 EXPORT_SYMBOL(neigh_event_ns);
 
+/*
+ * 二层帧缓存初始化
+ * 最初的时候dst->hh 为空，调用常用的发送函数，发送过程中会调用该函数缓存二
+ * 层头，并设置dst->hh 后续的发送函数会直接调用缓存了二层头的函数接口发送.
+ */
 static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 			  __be16 protocol)
 {
 	struct hh_cache	*hh;
 	struct net_device *dev = dst->dev;
 
+	/* 邻居表项中的二层帧缓存，通过协议号区分 */
 	for (hh = n->hh; hh; hh = hh->hh_next)
 		if (hh->hh_type == protocol)
 			break;
@@ -1217,6 +1222,7 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 	if (!hh && (hh = kzalloc(sizeof(*hh), GFP_ATOMIC)) != NULL) {
 		seqlock_init(&hh->hh_lock);
 		hh->hh_type = protocol;
+		/* 最初设置引用计数为 0 */
 		atomic_set(&hh->hh_refcnt, 0);
 		hh->hh_next = NULL;
 
@@ -1224,18 +1230,22 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 			kfree(hh);
 			hh = NULL;
 		} else {
+			/* 增加引用计数 */
 			atomic_inc(&hh->hh_refcnt);
+			/* 添加到链表中 */
 			hh->hh_next = n->hh;
 			n->hh	    = hh;
+			/* 根据neighbour 状态设置发送函数 */
 			if (n->nud_state & NUD_CONNECTED)
 				hh->hh_output = n->ops->hh_output;
 			else
 				hh->hh_output = n->ops->output;
 		}
 	}
-	/* 设置dst->hh */
+	/* 如果找到了，增加引用计数，设置 */
 	if (hh)	{
 		atomic_inc(&hh->hh_refcnt);
+		/* 设置dst->hh */
 		dst->hh = hh;
 	}
 }
@@ -1243,6 +1253,8 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 /* This function can be used in contexts, where only old dev_queue_xmit
    worked, f.e. if you want to override normal output path (eql, shaper),
    but resolution is not made yet.
+
+   f.e. 例如(for example)
  */
 
 int neigh_compat_output(struct sk_buff *skb)
@@ -1276,6 +1288,7 @@ int neigh_resolve_output(struct sk_buff *skb)
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
 		struct net_device *dev = neigh->dev;
+		/* 如果设备实现了缓存接口则缓存二层头 */
 		if (dev->header_ops->cache && !dst->hh) {
 			write_lock_bh(&neigh->lock);
 			if (!dst->hh)
@@ -1289,6 +1302,7 @@ int neigh_resolve_output(struct sk_buff *skb)
 					      neigh->ha, NULL, skb->len);
 			read_unlock_bh(&neigh->lock);
 		}
+		/* 正常时大于等于0，正常时直接调用发送函数 */
 		if (err >= 0)
 			rc = neigh->ops->queue_xmit(skb);
 		else
@@ -1307,7 +1321,7 @@ out_kfree_skb:
 EXPORT_SYMBOL(neigh_resolve_output);
 
 /* As fast as possible without hh cache */
-
+/* 尽量快但没二层缓存头 */
 int neigh_connected_output(struct sk_buff *skb)
 {
 	int err;
@@ -1343,6 +1357,7 @@ static void neigh_proxy_process(unsigned long arg)
 	skb_queue_walk_safe(&tbl->proxy_queue, skb, n) {
 		long tdif = NEIGH_CB(skb)->sched_next - now;
 
+		/* 到时间了 */
 		if (tdif <= 0) {
 			struct net_device *dev = skb->dev;
 			__skb_unlink(skb, &tbl->proxy_queue);
@@ -1353,14 +1368,18 @@ static void neigh_proxy_process(unsigned long arg)
 
 			dev_put(dev);
 		} else if (!sched_next || tdif < sched_next)
+			/* 挑选最短的时间为超时时间 */
 			sched_next = tdif;
 	}
+	/* 定时器去使能 */
 	del_timer(&tbl->proxy_timer);
+	/* 修改定时器超时时间 */
 	if (sched_next)
 		mod_timer(&tbl->proxy_timer, jiffies + sched_next);
 	spin_unlock(&tbl->proxy_queue.lock);
 }
 
+/* 此处的p 是代理的意思 */
 void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 		    struct sk_buff *skb)
 {
@@ -1388,6 +1407,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 }
 EXPORT_SYMBOL(pneigh_enqueue);
 
+/* 查找neigh_parms{} */
 static inline struct neigh_parms *lookup_neigh_parms(struct neigh_table *tbl,
 						      struct net *net, int ifindex)
 {
@@ -1409,10 +1429,12 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 	struct net *net = dev_net(dev);
 	const struct net_device_ops *ops = dev->netdev_ops;
 
+	/* 此处可以理解成是一个模板，通过ifindex 为0 时获取 */
 	ref = lookup_neigh_parms(tbl, net, 0);
 	if (!ref)
 		return NULL;
 
+	/* 复制模板并设置 */
 	p = kmemdup(ref, sizeof(*p), GFP_KERNEL);
 	if (p) {
 		p->tbl		  = tbl;
@@ -1425,10 +1447,12 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 			return NULL;
 		}
 
+		/* 每个dev 对应于一个neigh_parms{}实例 */
 		dev_hold(dev);
 		p->dev = dev;
 		write_pnet(&p->net, hold_net(net));
 		p->sysctl_table = NULL;
+		/* 插入到链表中 */
 		write_lock_bh(&tbl->lock);
 		p->next		= tbl->parms.next;
 		tbl->parms.next = p;
@@ -1443,6 +1467,7 @@ static void neigh_rcu_free_parms(struct rcu_head *head)
 	struct neigh_parms *parms =
 		container_of(head, struct neigh_parms, rcu_head);
 
+	/* 递减引用计数 */
 	neigh_parms_put(parms);
 }
 
@@ -1455,6 +1480,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 	write_lock_bh(&tbl->lock);
 	for (p = &tbl->parms.next; *p; p = &(*p)->next) {
 		if (*p == parms) {
+			/* TODO: 这个地方二级指针的用法，需要学习一下 */
 			*p = parms->next;
 			parms->dead = 1;
 			write_unlock_bh(&tbl->lock);
@@ -1469,6 +1495,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 }
 EXPORT_SYMBOL(neigh_parms_release);
 
+/* 当引用计数为0 是调用的释放函数 */
 static void neigh_parms_destroy(struct neigh_parms *parms)
 {
 	release_net(neigh_parms_net(parms));
@@ -1588,6 +1615,7 @@ int neigh_table_clear(struct neigh_table *tbl)
 }
 EXPORT_SYMBOL(neigh_table_clear);
 
+/* netlink 接口函数 */
 static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1927,6 +1955,7 @@ static const struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] = {
 	[NDTPA_LOCKTIME]		= { .type = NLA_U64 },
 };
 
+/* netlink 接口函数 */
 static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
