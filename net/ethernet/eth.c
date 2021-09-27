@@ -65,6 +65,7 @@ __setup("ether=", netdev_boot_setup);
 
 /**
  * eth_header - create the Ethernet header
+ *            - 创建报文的以太网头
  * @skb:	buffer to alter
  * @dev:	source device
  * @type:	Ethernet type field
