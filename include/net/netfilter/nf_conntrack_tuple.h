@@ -52,10 +52,11 @@ union nf_conntrack_man_proto {
 
 /* The manipulable part of the tuple. */
 struct nf_conntrack_man {
-	union nf_inet_addr u3;
-	union nf_conntrack_man_proto u;
+	union nf_inet_addr u3;			//IP地址
+	union nf_conntrack_man_proto u;		//端口号
 	/* Layer 3 protocol */
-	u_int16_t l3num;
+	u_int16_t l3num;			//三层协议号(IPv4,IPv6...)
+						//IPv4时此处存储的是PF_INET(2)
 };
 
 /* This contains the information to distinguish a connection. */
@@ -90,6 +91,7 @@ struct nf_conntrack_tuple {
 		} u;
 
 		/* The protocol. */
+		/* 存储的是三层协议号 TCP(6),UDP(17) */
 		u_int8_t protonum;
 
 		/* The direction (for tuplehash) */

@@ -263,14 +263,14 @@ typedef unsigned char *sk_buff_data_t;
  *	@sk: Socket we are owned by
  *	@tstamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
- *	@transport_header: Transport layer header
- *	@network_header: Network layer header
- *	@mac_header: Link layer header
+ *	@transport_header: Transport layer header(四层头，TCP、UDP等)
+ *	@network_header: Network layer header(IPv4中对应IP头)
+ *	@mac_header: Link layer header(二层链路头)
  *	@_skb_refdst: destination entry (with norefcount bit)
  *	@sp: the security path, used for xfrm
  *	@cb: Control buffer. Free for use by every layer. Put private vars here
- *	@len: Length of actual data
- *	@data_len: Data length
+ *	@len: Length of actual data(实际的数据长度)
+ *	@data_len: Data length(数据长度)
  *	@mac_len: Length of link layer header
  *	@hdr_len: writable header length of cloned skb
  *	@csum: Checksum (must include start/offset pair)
@@ -1864,6 +1864,15 @@ extern int	       skb_shift(struct sk_buff *tgt, struct sk_buff *skb,
 
 extern struct sk_buff *skb_segment(struct sk_buff *skb, int features);
 
+/*
+ * 返回skb 中offset 处长度为len 的数据指针
+ *
+ * 参数:
+ * skb		报文
+ * offset	数据偏移量
+ * len		数据长度
+ * buffer	缓存数据指针
+ */
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)
 {

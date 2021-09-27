@@ -105,6 +105,7 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 {
 	memset(tuple, 0, sizeof(*tuple));
 
+	/* IPv4时，此处存储的是PF_INET(2) */
 	tuple->src.l3num = l3num;
 	if (l3proto->pkt_to_tuple(skb, nhoff, tuple) == 0)
 		return false;
@@ -883,6 +884,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
 	if (l4proto->error != NULL) {
+		/* TODO: next... */
 		ret = l4proto->error(net, tmpl, skb, dataoff, &ctinfo,
 				     pf, hooknum);
 		if (ret <= 0) {
@@ -893,6 +895,10 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		}
 	}
 
+	/*
+	 * TODO: next...
+	 * tmpl
+	 */
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {

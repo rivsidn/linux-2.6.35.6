@@ -66,12 +66,19 @@ static int ipv4_print_tuple(struct seq_file *s,
 			  &tuple->src.u3.ip, &tuple->dst.u3.ip);
 }
 
+/*
+ * 四层协议数据偏移量、协议号
+ *
+ * skb，nhoff 		输入参数
+ * dataoff，protonum 	输出参数
+ */
 static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			    unsigned int *dataoff, u_int8_t *protonum)
 {
 	const struct iphdr *iph;
 	struct iphdr _iph;
 
+	/* TODO: 这个函数是做什么用的？ */
 	iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 	if (iph == NULL)
 		return -NF_DROP;
@@ -81,6 +88,7 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	if (iph->frag_off & htons(IP_OFFSET))
 		return -NF_DROP;
 
+	/* 获取数据偏移量和协议号 */
 	*dataoff = nhoff + (iph->ihl << 2);
 	*protonum = iph->protocol;
 
