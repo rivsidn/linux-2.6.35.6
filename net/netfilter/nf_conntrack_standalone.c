@@ -141,6 +141,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (l4proto->print_conntrack && l4proto->print_conntrack(s, ct))
 		goto release;
 
+	/* 输出原始的五元组 */
 	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 			l3proto, l4proto))
 		goto release;
@@ -152,6 +153,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		if (seq_printf(s, "[UNREPLIED] "))
 			goto release;
 
+	/* 输出回复的五元组 */
 	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 			l3proto, l4proto))
 		goto release;

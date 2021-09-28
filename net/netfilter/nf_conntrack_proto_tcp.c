@@ -282,12 +282,14 @@ static bool tcp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 	if (hp == NULL)
 		return false;
 
+	/* 设置四层端口号 */
 	tuple->src.u.tcp.port = hp->source;
 	tuple->dst.u.tcp.port = hp->dest;
 
 	return true;
 }
 
+/* 反转四层端口号 */
 static bool tcp_invert_tuple(struct nf_conntrack_tuple *tuple,
 			     const struct nf_conntrack_tuple *orig)
 {

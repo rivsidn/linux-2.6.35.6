@@ -80,6 +80,7 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 	if (e == NULL)
 		return;
 
+	/* 是否处理该事件，不处理则直接返回 */
 	if (!(e->ctmask & (1 << event)))
 		return;
 

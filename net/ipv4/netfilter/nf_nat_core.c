@@ -311,7 +311,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 	nf_ct_invert_tuplepr(&curr_tuple,
 			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
-	/* 为什么此处没有检测返回值？ */
+	/* 为什么此处没有检测返回值？此处没有检测返回值的逻辑是什么？ */
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {

@@ -103,6 +103,7 @@ struct nf_conn {
 	unsigned long status;
 
 	/* If we were expected by an expectation, this will be it */
+	/* 当是子链接时设置他的父链接 */
 	struct nf_conn *master;
 
 	/* Timer function; drops refcnt when it goes off. */

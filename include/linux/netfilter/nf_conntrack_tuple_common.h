@@ -2,8 +2,8 @@
 #define _NF_CONNTRACK_TUPLE_COMMON_H
 
 enum ip_conntrack_dir {
-	IP_CT_DIR_ORIGINAL,
-	IP_CT_DIR_REPLY,
+	IP_CT_DIR_ORIGINAL,		//0
+	IP_CT_DIR_REPLY,		//1
 	IP_CT_DIR_MAX
 };
 

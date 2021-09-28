@@ -6,8 +6,8 @@
 #define NF_NAT_MAPPING_TYPE_MAX_NAMELEN 16
 
 enum nf_nat_manip_type {
-	IP_NAT_MANIP_SRC,
-	IP_NAT_MANIP_DST
+	IP_NAT_MANIP_SRC,		//源NAT
+	IP_NAT_MANIP_DST		//目的NAT
 };
 
 /* SRC manip occurs POST_ROUTING or LOCAL_IN */

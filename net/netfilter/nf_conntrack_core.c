@@ -516,8 +516,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(__nf_conntrack_confirm);
 
-/* Returns true if a connection correspondings to the tuple (required
-   for NAT). */
+/* Returns true if a connection correspondings to the tuple (required for NAT). */
+/* 如果一个链接关联了tuple 信息，则返回true */
 int
 nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 			 const struct nf_conn *ignored_conntrack)
@@ -818,6 +818,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
 	/* It exists; we have (non-exclusive) reference. */
+	/* TODO: 这个地方的代码没看明白？ */
 	if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY) {
 		*ctinfo = IP_CT_ESTABLISHED + IP_CT_IS_REPLY;
 		/* Please set reply bit if this packet OK */
@@ -837,6 +838,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		}
 		*set_reply = 0;
 	}
+	/* 此处存储的是指针，ct_general 在结构体头部，所以该内存位置跟nf_conn{} 一致 */
 	skb->nfct = &ct->ct_general;
 	skb->nfctinfo = *ctinfo;
 	return ct;
@@ -884,7 +886,6 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	 * inverse of the return code tells to the netfilter
 	 * core what to do with the packet. */
 	if (l4proto->error != NULL) {
-		/* TODO: next... */
 		ret = l4proto->error(net, tmpl, skb, dataoff, &ctinfo,
 				     pf, hooknum);
 		if (ret <= 0) {
@@ -895,10 +896,6 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		}
 	}
 
-	/*
-	 * TODO: next...
-	 * tmpl
-	 */
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {
@@ -967,9 +964,10 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
 
 	pr_debug("Altering reply tuple of %p to ", ct);
-	nf_ct_dump_tuple(newreply);
+	nf_ct_dump_tuple(newreply);	//调试信息
 
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
+	/* TODO: 第二个判断是什么意思？ */
 	if (ct->master || (help && !hlist_empty(&help->expectations)))
 		return;
 
