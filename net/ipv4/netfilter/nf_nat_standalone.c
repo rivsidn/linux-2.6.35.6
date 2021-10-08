@@ -135,6 +135,7 @@ nf_nat_fn(unsigned int hooknum,
 				/* LOCAL_IN hook doesn't have a chain!  */
 				ret = alloc_null_binding(ct, hooknum);
 			else
+				/* 只有新的会话才会去走nat 规则 */
 				ret = nf_nat_rule_find(skb, hooknum, in, out,
 						       ct);
 
