@@ -3507,6 +3507,7 @@ static void net_rx_action(struct softirq_action *h)
 		 * Allow this to run for 2 jiffies since which will allow
 		 * an average latency of 1.5/HZ.
 		 */
+		/* 超过数量限制或者超过时间限制，则结束处理 */
 		if (unlikely(budget <= 0 || time_after(jiffies, time_limit)))
 			goto softnet_break;
 
@@ -3574,6 +3575,11 @@ out:
 
 softnet_break:
 	sd->time_squeeze++;
+	/*
+	 * 何时会处理软中断：
+	 * 1. 中断退出的时候？
+	 * 2. 还会有其他时候么？
+	 */
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 	goto out;
 }

@@ -250,6 +250,7 @@ restart:
 
 #ifndef __ARCH_HAS_DO_SOFTIRQ
 
+/* 如果没有定义架构独有的软中断处理函数会调用该函数 */
 asmlinkage void do_softirq(void)
 {
 	__u32 pending;
@@ -694,6 +695,7 @@ void __init softirq_init(void)
 	open_softirq(HI_SOFTIRQ, tasklet_hi_action);
 }
 
+/* 内核守护进程，用于处理软中断 */
 static int run_ksoftirqd(void * __bind_cpu)
 {
 	set_current_state(TASK_INTERRUPTIBLE);
