@@ -117,7 +117,7 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
 
 /**
  * test_and_set_bit - Set a bit and return its old value
- * 					- 设置一位并返回之前值
+ *                  - 设置一位并返回之前值
  * @nr: Bit to set
  * @addr: Address to count from
  *
