@@ -228,7 +228,11 @@ static u32 arp_hash(const void *pkey, const struct net_device *dev)
 	return jhash_2words(*(u32 *)pkey, dev->ifindex, arp_tbl.hash_rnd);
 }
 
-/* ARP构造器 */
+/*
+ * ARP构造器
+ * neigh_create() 中调用到该函数，根据设备类型、设备驱动，给neighbour 中
+ * ops 赋值.
+ */
 static int arp_constructor(struct neighbour *neigh)
 {
 	__be32 addr = *(__be32*)neigh->primary_key;
