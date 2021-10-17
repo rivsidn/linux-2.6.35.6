@@ -17,13 +17,16 @@
 
 #ifndef __ASSEMBLY__
 
+/* 内核态中指针不会指向这部分内存 */
 #define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-MAX_ERRNO)
 
+/* 错误号 to 成指针 */
 static inline void * __must_check ERR_PTR(long error)
 {
 	return (void *) error;
 }
 
+/* 指针 to 错误号 */
 static inline long __must_check PTR_ERR(const void *ptr)
 {
 	return (long) ptr;
