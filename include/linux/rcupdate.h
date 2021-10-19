@@ -422,6 +422,11 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * (currently only the Alpha), and, more importantly, documents
  * exactly which pointers are protected by RCU.
  */
+/*
+ * 在某些需要的架构上(当前只是Alpha)插入内存屏障。
+ * Alpha 平台上，编译器的 value->speculation 优化选项据说可能会先"猜测"
+ * p1 的值，然后重排指令先取值 p->field。
+ */
 #define rcu_dereference_raw(p)	({ \
 				typeof(p) _________p1 = ACCESS_ONCE(p); \
 				smp_read_barrier_depends(); \
@@ -463,6 +468,17 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * structure after the pointer assignment.  More importantly, this
  * call documents which pointers will be dereferenced by RCU read-side
  * code.
+ */
+/*
+ * 此处的内存屏障用于防止编译器代码乱序，使得结构体在指针设置后初始化。
+ *
+ * __builtin_constant_p() 是编译器gcc内置函数，判断一个数是不是常量，
+ * 如果是常量则返回 1，如果不是常量则返回 0。
+ *
+ * 所以这部分代码意思是: 如果设置的 v 不是常数或不为 NULL，则需要添加
+ * 内存屏障，保证v 初始化在分配指针之前完成。
+ * 此处加的内存屏障是"写"内存屏障，保证在执行下一条指令之前，写操作已经
+ * 全部完成。
  */
 
 #define rcu_assign_pointer(p, v) \

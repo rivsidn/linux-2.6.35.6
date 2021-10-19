@@ -300,6 +300,9 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  * use is to mediate communication between process-level code and irq/NMI
  * handlers, all running on the same CPU.
  */
+/*
+ * 杜绝编译器优化或寄存器缓存；该宏对于CPU 乱序执行并不起作用.
+ */
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
 #endif /* __LINUX_COMPILER_H */

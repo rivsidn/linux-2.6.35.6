@@ -15,6 +15,7 @@ file for more information on using RCU with linked lists.
 Frequently Asked Questions
 
 o	Why would anyone want to use RCU?
+	为什么需要RCU?
 
 	The advantage of RCU's two-part approach is that RCU readers need
 	not acquire any locks, perform any atomic instructions, write to
@@ -24,8 +25,14 @@ o	Why would anyone want to use RCU?
 	in read-mostly situations.  The fact that RCU readers need not
 	acquire locks can also greatly simplify deadlock-avoidance code.
 
+	RCU的优势是，RCU读端不需要获取锁，执行原子操作，写入共享内存，
+	或(在除了Alpha外的其他CPU上)不需要执行内存屏障。不需要执行这
+	些在现代CPU上消耗很大的操作使得RCU在读频繁的地方有很大的性能
+	提升。在读侧不需要锁降低了死锁的出现。
+
 o	How can the updater tell when a grace period has completed
 	if the RCU readers give no indication when they are done?
+	如果RCU读端读结束之后没做其他提示，更新端怎么知道已经过了宽限期？
 
 	Just as with spinlocks, RCU readers are not permitted to
 	block, switch to user-mode execution, or enter the idle loop.
@@ -35,6 +42,11 @@ o	How can the updater tell when a grace period has completed
 	linked list, and then wait until all CPUs have switched context,
 	executed in user mode, or executed in the idle loop, we can
 	safely free up that item.
+	跟自旋锁一样，RCU读端不允许阻塞，切换到用户态执行，或者是进入idle循环。
+	因此，只要看到CPU经过了这些状态就认为CPU退出了之前的临近区。
+	所以，如果我们从链表中删除了一项，我们只需要等到所有的CPU已经切换
+	上下文，进入到用户态执行，或者进入到idle循环中执行，我们就可以
+	安全的释放这一项。
 
 	Preemptible variants of RCU (CONFIG_TREE_PREEMPT_RCU) get the
 	same effect, but require that the readers manipulate CPU-local
@@ -43,13 +55,21 @@ o	How can the updater tell when a grace period has completed
 	CPU-local counters, and permits general blocking within
 	RCU read-side critical sections.  These two variants of
 	RCU detect grace periods by sampling these counters.
+	可抢占的RCU (CONFIG_TREE_PREEMPT_RCU) 起相同的作用，但是需要读端
+	维护一个CPU本地的计数器。这些计数器允许在RCU临近区内有限类型的阻
+	塞。SRCU同样用CPU本地计数器，并且允许在临近区内阻塞。这两种RCU类型
+	通过统计这些计数器来检宽限期。
+	此处的SRCU 也就是 Sleepable RCU 也就是可休眠的RCU。
 
 o	If I am running on a uniprocessor kernel, which can only do one
 	thing at a time, why should I wait for a grace period?
+	如果我运行一个单CPU内核，同一时间内只能做一件事，为什么我还要等待
+	宽限期？
 
 	See the UP.txt file in this directory.
 
 o	How can I see where RCU is currently used in the Linux kernel?
+	我怎么能看到RCU在当前内核中的使用情况？
 
 	Search for "rcu_read_lock", "rcu_read_unlock", "call_rcu",
 	"rcu_read_lock_bh", "rcu_read_unlock_bh", "call_rcu_bh",
@@ -60,6 +80,7 @@ o	How can I see where RCU is currently used in the Linux kernel?
 	http://www.rdrop.com/users/paulmck/RCU/linuxusage/rculocktab.html
 
 o	What guidelines should I follow when writing code that uses RCU?
+	在代码中使用RCU 的时候该遵守那些准则？
 
 	See the checklist.txt file in this directory.
 
@@ -70,6 +91,7 @@ o	Why the name "RCU"?
 	"read-copy update" to find it.
 
 o	I hear that RCU is patented?  What is with that?
+	RCU已经被申请了专利？有那些专利？
 
 	Yes, it is.  There are several known patents related to RCU,
 	search for the string "Patent" in RTFP.txt to find them.
@@ -79,14 +101,18 @@ o	I hear that RCU is patented?  What is with that?
 	available (http://lttng.org/?q=node/18).
 
 o	I hear that RCU needs work in order to support realtime kernels?
+	听过RCU需要某些工作来支持实时内核？
 
 	This work is largely completed.  Realtime-friendly RCU can be
 	enabled via the CONFIG_TREE_PREEMPT_RCU kernel configuration
 	parameter.  However, work is in progress for enabling priority
 	boosting of preempted RCU read-side critical sections.	This is
 	needed if you have CPU-bound realtime threads.
+	这部分工作已经结束了。但是读临近区的优先级提升工作正在进行中。
+	绑定CPU的实时线程需要这部分。
 
 o	Where can I find more information on RCU?
+	去那查找更多的RCU资料？
 
 	See the RTFP.txt file in this directory.
 	Or point your browser at http://www.rdrop.com/users/paulmck/RCU/.

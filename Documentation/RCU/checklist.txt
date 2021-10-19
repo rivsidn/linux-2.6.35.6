@@ -24,6 +24,7 @@ over a rather long period of time, but improvements are always welcome!
 	read-side primitives is critically important.
 
 1.	Does the update code have proper mutual exclusion?
+	更新部分的代码是否有恰当的互斥操作？
 
 	RCU does allow -readers- to run (almost) naked, but -writers- must
 	still use some sort of mutual exclusion, such as:
