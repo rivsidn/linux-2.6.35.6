@@ -334,12 +334,13 @@ inline void raise_softirq_irqoff(unsigned int nr)
 		wakeup_softirqd();
 }
 
+/* 没关中断时调用的软中断触发函数，需要先关中断 */
 void raise_softirq(unsigned int nr)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	raise_softirq_irqoff(nr);
+	raise_softirq_irqoff(nr);	//该操作一定要在关中断情况下执行
 	local_irq_restore(flags);
 }
 
@@ -364,6 +365,11 @@ void __tasklet_schedule(struct tasklet_struct *t)
 {
 	unsigned long flags;
 
+	/*
+	 * 此处为什么需要关中断？
+	 * 很简单的道理，在 do_IRQ() 函数处理中需要检测是否有软中断
+	 * 需要处理，此处的写操作跟中断处理函数中的读操作是互斥的。
+	 */
 	local_irq_save(flags);
 	t->next = NULL;
 	*__get_cpu_var(tasklet_vec).tail = t;

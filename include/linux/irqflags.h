@@ -60,6 +60,12 @@
 	do { trace_hardirqs_on(); raw_local_irq_enable(); } while (0)
 #define local_irq_disable() \
 	do { raw_local_irq_disable(); trace_hardirqs_off(); } while (0)
+/*
+ * 如果执行到此处的时候中断可能是关闭的，需要调用 local_irq_save()。
+ * 这里很容易理解，如果在此处的时候中断已经是关闭的了，调用local_irq_disable()
+ * 之后，中断还是关闭的，但是local_irq_enable() 之后中断就开启了，跟预期
+ * 不符。
+ */
 #define local_irq_save(flags)				\
 	do {						\
 		typecheck(unsigned long, flags);	\

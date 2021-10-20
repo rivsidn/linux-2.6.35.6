@@ -70,7 +70,7 @@ over a rather long period of time, but improvements are always welcome!
 		the Linux kernel.
 
 		This is almost always the best approach.
-
+看到了这里...
 	b.	Proceed as in (a) above, but also maintain per-element
 		locks (that are acquired by both readers and writers)
 		that guard per-element state.  Of course, fields that

@@ -838,6 +838,10 @@ static void kgdb_unregister_callbacks(void)
  * such as is the case with kgdboe, where calling a breakpoint in the
  * I/O driver itself would be fatal.
  */
+/*
+ * 有些时候需要tasklet 来制造异常。
+ * kgdboe: kgdb over ethernet
+ */
 static void kgdb_tasklet_bpt(unsigned long ing)
 {
 	kgdb_breakpoint();
