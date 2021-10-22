@@ -44,6 +44,7 @@ typedef struct {
 #define SEQLOCK_UNLOCKED \
 		 __SEQLOCK_UNLOCKED(old_style_seqlock_init)
 
+/* 初始化 */
 #define seqlock_init(x)					\
 	do {						\
 		(x)->sequence = 0;			\
@@ -57,21 +58,31 @@ typedef struct {
  * Acts like a normal spin_lock/unlock.
  * Don't need preempt_disable() because that is in the spin_lock already.
  */
-/* 理解一下这里的读写屏障为什么要这样加？ */
+/*
+ * 自旋锁中有关调度操作。
+ */
 static inline void write_seqlock(seqlock_t *sl)
 {
 	spin_lock(&sl->lock);
 	++sl->sequence;
+	/*
+	 * smp_wmb() 此处的作用是，确保序列号操作结束之后能够被读
+	 * 端立即感知到.
+	 */
 	smp_wmb();
 }
 
 static inline void write_sequnlock(seqlock_t *sl)
 {
+	/*
+	 * 写操作执行结束之后，写操作的内容能够被读端立即感知到.
+	 */
 	smp_wmb();
 	sl->sequence++;
 	spin_unlock(&sl->lock);
 }
 
+/* 尝试获取写锁 */
 static inline int write_tryseqlock(seqlock_t *sl)
 {
 	int ret = spin_trylock(&sl->lock);
@@ -90,7 +101,7 @@ static __always_inline unsigned read_seqbegin(const seqlock_t *sl)
 
 repeat:
 	ret = sl->sequence;
-	smp_rmb();
+	smp_rmb();			//杜绝编译器乱序，CPU乱序
 	if (unlikely(ret & 1)) {
 		cpu_relax();		//cpu空转
 		goto repeat;
@@ -103,6 +114,9 @@ repeat:
  * Test if reader processed invalid data.
  *
  * If sequence value changed then writer changed data while in section.
+ */
+/*
+ * 检查reader 是否获取到了无效的数据
  */
 static __always_inline int read_seqretry(const seqlock_t *sl, unsigned start)
 {
@@ -117,6 +131,10 @@ static __always_inline int read_seqretry(const seqlock_t *sl, unsigned start)
  * This can be used when code has its own mutex protecting the
  * updating starting before the write_seqcountbeqin() and ending
  * after the write_seqcount_end().
+ */
+/*
+ * 只有sequence 的版本，该版本适用于 write_seqcountbeqin()/write_seqcount_end()
+ * 有锁保护的情况。
  */
 
 typedef struct seqcount {
@@ -144,6 +162,9 @@ repeat:
 /*
  * Test if reader processed invalid data because sequence number has changed.
  */
+/*
+ * 检查序列号是否改变，如果改变了表示读进程读到的是无效数据
+ */
 static inline int read_seqcount_retry(const seqcount_t *s, unsigned start)
 {
 	smp_rmb();
@@ -170,6 +191,9 @@ static inline void write_seqcount_end(seqcount_t *s)
 
 /*
  * Possible sw/hw IRQ protected versions of the interfaces.
+ */
+/*
+ * 可能的硬件中断、软件中断保护版本接口
  */
 #define write_seqlock_irqsave(lock, flags)				\
 	do { local_irq_save(flags); write_seqlock(lock); } while (0)

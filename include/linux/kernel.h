@@ -147,6 +147,11 @@ extern int _cond_resched(void);
  * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
+/*
+ * 用于那些可以休眠的函数。
+ * 当在原子上下文中调用该宏的时候，会输出调用栈信息，这些调试信息可以用来提前
+ * 发现信息，避免引起更严重的后果。
+ */
 # define might_sleep() \
 	do { __might_sleep(__FILE__, __LINE__, 0); might_resched(); } while (0)
 #else
