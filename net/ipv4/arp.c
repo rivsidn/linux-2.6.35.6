@@ -125,6 +125,7 @@ struct neigh_table *clip_tbl_hook;
 
 /*
  *	Interface to generic neighbour cache.
+ *	通用的邻居缓存接口函数
  */
 static u32 arp_hash(const void *pkey, const struct net_device *dev);
 static int arp_constructor(struct neighbour *neigh);
@@ -200,6 +201,7 @@ struct neigh_table arp_tbl = {
 	.gc_thresh3 =	1024,
 };
 
+/* 由组播IP映射到组播mac */
 int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 {
 	switch (dev->type) {
@@ -229,8 +231,7 @@ static u32 arp_hash(const void *pkey, const struct net_device *dev)
 }
 
 /*
- * ARP构造器
- * neigh_create() 中调用到该函数，根据设备类型、设备驱动，给neighbour 中
+ * neigh_create() 中调用到该函数，主要是根据设备类型、设备驱动，给neighbour 中
  * ops 赋值.
  */
 static int arp_constructor(struct neighbour *neigh)
@@ -247,8 +248,10 @@ static int arp_constructor(struct neighbour *neigh)
 		return -EINVAL;
 	}
 
+	/* 邻居表项类型，对应地址类型(单播、组播、广播等) */
 	neigh->type = inet_addr_type(dev_net(dev), addr);
 
+	/* TODO: 这些参数是何时设置的？ */
 	parms = in_dev->arp_parms;
 	__neigh_parms_put(neigh->parms);
 	neigh->parms = neigh_parms_clone(parms);

@@ -90,6 +90,12 @@ struct neigh_statistics {
 
 #define NEIGH_CACHE_STAT_INC(tbl, field) this_cpu_inc((tbl)->stats->field)
 
+/*
+ * 	@dev: 本地物理接口
+ * 	@type: 类型，对应地址类型，单播、组播、广播等
+ *	@ha: 本地设备硬件地址
+ *	@primary_key: IPv4中为对端IP地址
+ */
 struct neighbour {
 	struct neighbour	*next;
 	struct neigh_table	*tbl;

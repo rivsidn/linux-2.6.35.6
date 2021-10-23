@@ -101,7 +101,7 @@ static __always_inline unsigned read_seqbegin(const seqlock_t *sl)
 
 repeat:
 	ret = sl->sequence;
-	smp_rmb();			//杜绝编译器乱序，CPU乱序
+	smp_rmb();			//控制CPU乱序执行
 	if (unlikely(ret & 1)) {
 		cpu_relax();		//cpu空转
 		goto repeat;

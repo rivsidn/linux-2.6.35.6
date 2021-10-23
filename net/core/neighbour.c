@@ -823,6 +823,7 @@ static __inline__ int neigh_max_probes(struct neighbour *n)
 		p->ucast_probes + p->app_probes + p->mcast_probes);
 }
 
+/* __releases()/__acquires() 都是都是用于代码检查，究竟怎么使用，还没弄明白？ */
 static void neigh_invalidate(struct neighbour *neigh)
 	__releases(neigh->lock)
 	__acquires(neigh->lock)
