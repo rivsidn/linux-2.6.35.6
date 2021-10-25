@@ -2613,6 +2613,17 @@ static int kdb_grep_help(int argc, const char **argv)
  * Returns:
  *	zero for success, one if a duplicate command.
  */
+/*
+ * 注册内核调试命令
+ * 输入:
+ * 	cmd	命令名称
+ * 	func	执行的函数
+ *	usage	显示参数的提示信息
+ *	help	帮助信息
+ *	repeat	点击enter 是否重复执行
+ * 返回值:
+ * 	0 表示成功，1 表示命令重复
+ */
 #define kdb_command_extend 50	/* arbitrary */
 int kdb_register_repeat(char *cmd,
 			kdb_func_t func,
