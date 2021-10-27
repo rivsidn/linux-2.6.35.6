@@ -1,4 +1,5 @@
 Runtime locking correctness validator
+运行时锁正确性验证器
 =====================================
 
 started by Ingo Molnar <mingo@redhat.com>
@@ -24,7 +25,7 @@ a lock-class is used for the first time after bootup it gets registered,
 and all subsequent uses of that lock-class will be attached to this
 lock-class.
 
-State
+State(状态)
 -----
 
 The validator tracks lock-class usage history into 4n + 1 separate state bits:
@@ -94,7 +95,7 @@ validator will still track all dependencies between locks.)
 Furthermore, the following usage based lock dependencies are not allowed
 between any two lock-classes:
 
-   <hardirq-safe>   ->  <hardirq-unsafe>
+   <hardirq-safe>   ->  <hardirq-unsafe>	//可能在中断中获取的锁不能用于非中断上下文
    <softirq-safe>   ->  <softirq-unsafe>
 
 The first rule comes from the fact the a hardirq-safe lock could be
@@ -205,6 +206,7 @@ to do in practice).
     recursion must not be higher than 20.
 
 Performance:
+性能问题:
 ------------
 
 The above rules require _massive_ amounts of runtime checking. If we did

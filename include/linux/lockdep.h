@@ -27,6 +27,9 @@ extern int lock_stat;
  * We'd rather not expose kernel/lockdep_states.h this wide, but we do need
  * the total number of states... :-(
  */
+/*
+ * 不想要将 kernel/lockdep_states.h 暴露到这里，但是还需要获取状态数量
+ */
 #define XXX_LOCK_USAGE_STATES		(1+3*4)
 
 #define MAX_LOCKDEP_SUBCLASSES		8UL
@@ -136,6 +139,9 @@ void clear_lock_stats(struct lock_class *class);
  * Map the lock object (the lock instance) to the lock-class object.
  * This is embedded into specific lock instances:
  */
+/*
+ * 将锁实例映射到lock-class 对象，该结构体嵌入到特定的锁实例中.
+ */
 struct lockdep_map {
 	struct lock_class_key		*key;
 	struct lock_class		*class_cache;
@@ -149,6 +155,10 @@ struct lockdep_map {
 /*
  * Every lock has a list of other locks that were taken after it.
  * We only grow the list, never remove from it:
+ */
+/*
+ * 每个锁都有一个我们在获取这个锁之后的其他锁的链表，仅增长这个锁，
+ * 不会删除。
  */
 struct lock_list {
 	struct list_head		entry;
@@ -165,6 +175,9 @@ struct lock_list {
 
 /*
  * We record lock dependency chains, so that we can cache them:
+ */
+/*
+ * 记录所的依赖链表，这样可以缓存:
  */
 struct lock_chain {
 	u8				irq_context;
@@ -205,6 +218,7 @@ struct held_lock {
 	u64 				waittime_stamp;
 	u64				holdtime_stamp;
 #endif
+	/* lock_classes[] 中偏移量 */
 	unsigned int			class_idx:MAX_LOCKDEP_KEYS_BITS;
 	/*
 	 * The lock-stack is unified in that the lock chains of interrupt

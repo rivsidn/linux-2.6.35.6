@@ -37,6 +37,7 @@ enum {
 	__LOCKF(USED)
 };
 
+/* 此处的中断表示硬件中断和软件中断 */
 #define LOCKF_ENABLED_IRQ (LOCKF_ENABLED_HARDIRQ | LOCKF_ENABLED_SOFTIRQ)
 #define LOCKF_USED_IN_IRQ (LOCKF_USED_IN_HARDIRQ | LOCKF_USED_IN_SOFTIRQ)
 
@@ -115,7 +116,7 @@ lockdep_count_backward_deps(struct lock_class *class)
 /*
  * Various lockdep statistics.
  * We want them per cpu as they are often accessed in fast path
- * and we want to avoid too much cache bouncing.
+ * and we want to avoid too much cache bouncing(缓存跳跃).
  */
 struct lockdep_stats {
 	int	chain_lookup_hits;

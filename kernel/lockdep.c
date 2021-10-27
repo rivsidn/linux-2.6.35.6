@@ -74,6 +74,9 @@ module_param(lock_stat, int, 0644);
  * to use a raw spinlock - we really dont want the spinlock
  * code to recurse back into the lockdep code...
  */
+/*
+ * TODO: 为什么这里用的锁与 raw spinlock 不同
+ */
 static arch_spinlock_t lockdep_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static int graph_lock(void)
@@ -90,6 +93,7 @@ static int graph_lock(void)
 		return 0;
 	}
 	/* prevent any recursions within lockdep from causing deadlocks */
+	/* 避免lockdep 中的递归死锁 */
 	current->lockdep_recursion++;
 	return 1;
 }
@@ -128,7 +132,7 @@ static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
  * Mutex key structs only get allocated, once during bootup, and never
  * get freed - this significantly simplifies the debugging code.
  */
-unsigned long nr_lock_classes;
+unsigned long nr_lock_classes;	/* 当前lock class 的数量 */
 static struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
 
 static inline struct lock_class *hlock_class(struct held_lock *hlock)
@@ -140,7 +144,7 @@ static inline struct lock_class *hlock_class(struct held_lock *hlock)
 	return lock_classes + hlock->class_idx - 1;
 }
 
-#ifdef CONFIG_LOCK_STAT
+#ifdef CONFIG_LOCK_STAT		//TODO: 暂时没看这部分
 static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS],
 		      cpu_lock_stats);
 
@@ -273,17 +277,23 @@ static inline void lock_release_holdtime(struct held_lock *hlock)
  * never shrinks. The list is only accessed with the lockdep
  * spinlock lock held.
  */
+/*
+ * 一个全局的链表，只有在 lockdep 自旋锁获取的时候才能被访问
+ */
 LIST_HEAD(all_lock_classes);
 
 /*
  * The lockdep classes are in a hash-table as well, for fast lookup:
+ */
+/*
+ * lockdep classes 依旧在 hash 表中，用于快速查询
  */
 #define CLASSHASH_BITS		(MAX_LOCKDEP_KEYS_BITS - 1)
 #define CLASSHASH_SIZE		(1UL << CLASSHASH_BITS)
 #define __classhashfn(key)	hash_long((unsigned long)key, CLASSHASH_BITS)
 #define classhashentry(key)	(classhash_table + __classhashfn((key)))
 
-static struct list_head classhash_table[CLASSHASH_SIZE];
+static struct list_head classhash_table[CLASSHASH_SIZE];	//class hash 表
 
 /*
  * We put the lock dependency chains into a hash-table as well, to cache
@@ -294,7 +304,7 @@ static struct list_head classhash_table[CLASSHASH_SIZE];
 #define __chainhashfn(chain)	hash_long(chain, CHAINHASH_BITS)
 #define chainhashentry(chain)	(chainhash_table + __chainhashfn((chain)))
 
-static struct list_head chainhash_table[CHAINHASH_SIZE];
+static struct list_head chainhash_table[CHAINHASH_SIZE];	//chain hash 表
 
 /*
  * The hash key of the lock dependency chains is a hash itself too:
@@ -302,11 +312,15 @@ static struct list_head chainhash_table[CHAINHASH_SIZE];
  * It's a 64-bit hash, because it's important for the keys to be
  * unique.
  */
+/*
+ * 生成hash 键值。 TODO: 理解这里的算法
+ */
 #define iterate_chain_key(key1, key2) \
 	(((key1) << MAX_LOCKDEP_KEYS_BITS) ^ \
 	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS)) ^ \
 	(key2))
 
+/* 针对当前进程操作，该功能是否生效 */
 void lockdep_off(void)
 {
 	current->lockdep_recursion++;
@@ -320,7 +334,7 @@ void lockdep_on(void)
 EXPORT_SYMBOL(lockdep_on);
 
 /*
- * Debugging switches:
+ * Debugging switches(调试开关):
  */
 
 #define VERBOSE			0
@@ -368,9 +382,13 @@ static int verbose(struct lock_class *class)
  * Stack-trace: tightly packed array of stack backtrace
  * addresses. Protected by the graph_lock.
  */
+/*
+ * 调用栈: 存放调用栈地址数组，通过 graph_lock 保护。
+ */
 unsigned long nr_stack_trace_entries;
 static unsigned long stack_trace[MAX_STACK_TRACE_ENTRIES];
 
+/* TODO: 调用栈信息怎么实现的没注意看 */
 static int save_trace(struct stack_trace *trace)
 {
 	trace->nr_entries = 0;
@@ -773,6 +791,7 @@ out_unlock_set:
 	graph_unlock();
 	raw_local_irq_restore(flags);
 
+	/* 设置缓存 */
 	if (!subclass || force)
 		lock->class_cache = class;
 
@@ -2717,6 +2736,9 @@ struct lock_class_key __lockdep_no_validate__;
  * This gets called for every mutex_lock*()/spin_lock*() operation.
  * We maintain the dependency maps and validate the locking attempt:
  */
+/*
+ * 每次加锁的时候都会调用到该函数。维护依赖关系映射，验证加锁尝试:
+ */
 static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check, int hardirqs_off,
 			  struct lockdep_map *nest_lock, unsigned long ip,
@@ -2778,6 +2800,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (DEBUG_LOCKS_WARN_ON(depth >= MAX_LOCK_DEPTH))
 		return 0;
 
+	/* class 在全局数组中的下标 */
 	class_idx = class - lock_classes + 1;
 
 	if (depth) {
@@ -3218,6 +3241,7 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	check_flags(flags);
 
 	current->lockdep_recursion = 1;
+	/* tracepoint ... */
 	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
 	__lock_acquire(lock, subclass, trylock, read, check,
 		       irqs_disabled_flags(flags), nest_lock, ip, 0);

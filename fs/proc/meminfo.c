@@ -53,9 +53,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	 * Tagged format, for easy grepping and expansion.
 	 */
 	seq_printf(m,
-		"MemTotal:       %8lu kB\n"
-		"MemFree:        %8lu kB\n"
-		"Buffers:        %8lu kB\n"
+		"MemTotal:       %8lu kB\n"		//i.totalram
+		"MemFree:        %8lu kB\n"		//i.freeram
+		"Buffers:        %8lu kB\n"		//i.bufferram
 		"Cached:         %8lu kB\n"
 		"SwapCached:     %8lu kB\n"
 		"Active:         %8lu kB\n"

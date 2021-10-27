@@ -4,10 +4,12 @@ LOCK STATISTICS
 - WHAT
 
 As the name suggests, it provides statistics on locks.
+提供锁的统计
 
 - WHY
 
 Because things like lock contention can severely impact performance.
+因为所的竞争状态会严重影响性能
 
 - HOW
 
@@ -65,18 +67,22 @@ that had to wait on lock acquisition.
  - CONFIGURATION
 
 Lock statistics are enabled via CONFIG_LOCK_STATS.
+使能配置
 
  - USAGE
 
 Enable collection of statistics:
+使能统计
 
 # echo 1 >/proc/sys/kernel/lock_stat
 
 Disable collection of statistics:
+去使能统计
 
 # echo 0 >/proc/sys/kernel/lock_stat
 
 Look at the current lock statistics:
+查看当前统计
 
 ( line numbers not part of actual output, done for clarity in the explanation
   below )
@@ -143,5 +149,6 @@ View the top contending locks:
                          tasklist_lock-W:            15             15           1.45          10.87          32.70           1201           7390           0.58          62.55       13648.47
 
 Clear the statistics:
+清空统计
 
 # echo 0 > /proc/lock_stat
