@@ -22,6 +22,10 @@
  * that would just muddy the log. So we report the first one and
  * shut up after that.
  */
+/*
+ * 全局的锁调试开关，一旦出现问题，立即关闭所有的锁调试功能，避免
+ * 后续的异常影响问题诊断
+ */
 int debug_locks = 1;
 EXPORT_SYMBOL_GPL(debug_locks);
 
@@ -29,6 +33,9 @@ EXPORT_SYMBOL_GPL(debug_locks);
  * The locking-testsuite uses <debug_locks_silent> to get a
  * 'silent failure': nothing is printed to the console when
  * a locking bug is detected.
+ */
+/*
+ * 代码出现异常的时候，不输出任何提示信息
  */
 int debug_locks_silent;
 

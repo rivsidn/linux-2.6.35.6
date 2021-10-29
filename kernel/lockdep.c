@@ -144,7 +144,7 @@ static inline struct lock_class *hlock_class(struct held_lock *hlock)
 	return lock_classes + hlock->class_idx - 1;
 }
 
-#ifdef CONFIG_LOCK_STAT		//TODO: 暂时没看这部分
+#ifdef CONFIG_LOCK_STAT
 static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS],
 		      cpu_lock_stats);
 
@@ -298,6 +298,9 @@ static struct list_head classhash_table[CLASSHASH_SIZE];	//class hash 表
 /*
  * We put the lock dependency chains into a hash-table as well, to cache
  * their existence:
+ */
+/*
+ * 依赖关系hash 表
  */
 #define CHAINHASH_BITS		(MAX_LOCKDEP_CHAINS_BITS-1)
 #define CHAINHASH_SIZE		(1UL << CHAINHASH_BITS)
@@ -721,6 +724,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 		return NULL;
 	}
 
+	/* 通过key值做hash访问hash 表 */
 	key = lock->key->subkeys + subclass;
 	hash_head = classhashentry(key);
 
@@ -752,6 +756,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 		dump_stack();
 		return NULL;
 	}
+	/* 如果没有找到，获取一个新的lock_class */
 	class = lock_classes + nr_lock_classes++;
 	debug_atomic_inc(nr_unused_locks);
 	class->key = key;
@@ -765,9 +770,15 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	 * We use RCU's safe list-add method to make
 	 * parallel walking of the hash-list safe:
 	 */
+	/*
+	 * 添加到hash 表中
+	 */
 	list_add_tail_rcu(&class->hash_entry, hash_head);
 	/*
 	 * Add it to the global list of classes:
+	 */
+	/*
+	 * 添加到全局链表中
 	 */
 	list_add_tail_rcu(&class->lock_entry, &all_lock_classes);
 
@@ -863,6 +874,10 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
  * the shortest path from the next lock to be acquired to the
  * previous held lock if there is a circular between them.
  */
+/*
+ * 该结构体用于实现广度有限算法，当下一个要获取的锁和之前获取
+ * 的锁之间有环的时候，我们可以建立一个最短路径
+ */
 struct circular_queue {
 	unsigned long element[MAX_CIRCULAR_QUEUE_SIZE];
 	unsigned int  front, rear;
@@ -890,16 +905,18 @@ static inline int __cq_full(struct circular_queue *cq)
 	return ((cq->rear + 1) & CQ_MASK) == cq->front;
 }
 
+/* 进队列 */
 static inline int __cq_enqueue(struct circular_queue *cq, unsigned long elem)
 {
 	if (__cq_full(cq))
 		return -1;
 
 	cq->element[cq->rear] = elem;
-	cq->rear = (cq->rear + 1) & CQ_MASK;
+	cq->rear = (cq->rear + 1) & CQ_MASK;	//0-4095 之间循环
 	return 0;
 }
 
+/* 出队列 */
 static inline int __cq_dequeue(struct circular_queue *cq, unsigned long *elem)
 {
 	if (__cq_empty(cq))
@@ -952,6 +969,7 @@ static inline int get_lock_depth(struct lock_list *child)
 	return depth;
 }
 
+/* 广度有限搜索 */
 static int __bfs(struct lock_list *source_entry,
 		 void *data,
 		 int (*match)(struct lock_list *entry, void *data),
@@ -974,6 +992,7 @@ static int __bfs(struct lock_list *source_entry,
 	else
 		head = &source_entry->class->locks_before;
 
+	/* 如果是空的 */
 	if (list_empty(head))
 		goto exit;
 
@@ -1825,6 +1844,9 @@ struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i)
  * validated. If the key is already hashed, return 0.
  * (On return with 1 graph_lock is held.)
  */
+/*
+ * 查询依赖关系链表，如果key值不存在，添加并返回 1，如果存在返回 0.
+ */
 static inline int lookup_chain_cache(struct task_struct *curr,
 				     struct held_lock *hlock,
 				     u64 chain_key)
@@ -1880,6 +1902,7 @@ cache_hit:
 		dump_stack();
 		return 0;
 	}
+	/* 数组中获取lock_chain */
 	chain = lock_chains + nr_lock_chains++;
 	chain->chain_key = chain_key;
 	chain->irq_context = hlock->irq_context;
@@ -1895,6 +1918,10 @@ cache_hit:
 	chain->depth = curr->lockdep_depth + 1 - i;
 	cn = nr_chain_hlocks;
 	while (cn + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS) {
+		/*
+		 * cn == nf_chain_hlocks 时，返回值为 cn；
+		 * cn != nf_chain_hlocks 时，返回值为 nr_chain_hlocks
+		 */
 		n = cmpxchg(&nr_chain_hlocks, cn, cn + chain->depth);
 		if (n == cn)
 			break;
@@ -2057,6 +2084,9 @@ print_usage_bug(struct task_struct *curr, struct held_lock *this,
 /*
  * Print out an error if an invalid bit is set:
  */
+/*
+ * 如果设置了一个无效的位，输出异常信息
+ */
 static inline int
 valid_state(struct task_struct *curr, struct held_lock *this,
 	    enum lock_usage_bit new_bit, enum lock_usage_bit bad_bit)
@@ -2115,18 +2145,21 @@ print_irq_inversion_bug(struct task_struct *curr,
  * Prove that in the forwards-direction subgraph starting at <this>
  * there is no lock matching <mask>:
  */
+/*
+ * ENABLE 的情况，调用这个处理函数
+ */
 static int
 check_usage_forwards(struct task_struct *curr, struct held_lock *this,
 		     enum lock_usage_bit bit, const char *irqclass)
 {
 	int ret;
 	struct lock_list root;
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *uninitialized_var(target_entry);	//warning抑制
 
 	root.parent = NULL;
 	root.class = hlock_class(this);
 	ret = find_usage_forwards(&root, bit, &target_entry);
-	if (ret < 0)
+	if (ret < 0)	//算法出错
 		return print_bfs_bug(ret);
 	if (ret == 1)
 		return ret;
@@ -2229,6 +2262,15 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	 * mark ENABLED has to look backwards -- to ensure no dependee
 	 * has USED_IN state, which, again, would allow  recursion deadlocks.
 	 */
+	/*
+	 * USED_IN 状态需要向前查找，确保没有依赖的有ENABLED状态，否则会导致递归死锁
+	 * ENABLED 状态需要向后查找，确保没有依赖该锁的处于USED_IN状态，否则会导致死锁
+	 * 
+	 * 理解应该是这样的：
+	 * A(USED_IN) -> B(ENABLE)
+	 * 先获取A，再获取B，如果在获取B的时候被中断打断，中断处理进程就会因为获取不到A 
+	 * 一直阻塞。
+	 */
 	check_usage_f usage = dir ?
 		check_usage_backwards : check_usage_forwards;
 
@@ -2236,12 +2278,18 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	 * Validate that this particular lock does not have conflicting
 	 * usage states.
 	 */
+	/*
+	 * 确认这个锁没有冲突的使用状态
+	 */
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
 
 	/*
 	 * Validate that the lock dependencies don't have conflicting usage
 	 * states.
+	 */
+	/*
+	 * 确认锁的依赖关闭并没有冲突的情况
 	 */
 	if ((!read || !dir || STRICT_READ_CHECKS) &&
 			!usage(curr, this, excl_bit, state_name(new_bit & ~1)))
@@ -2533,6 +2581,7 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 					return 0;
 		}
 	}
+	/* 进入到该处理流程的时候中断是否关闭 */
 	if (!hlock->hardirqs_off) {
 		if (hlock->read) {
 			if (!mark_lock(curr, hlock,
@@ -2580,6 +2629,9 @@ static int separate_irq_context(struct task_struct *curr,
 	/*
 	 * Keep track of points where we cross into an interrupt context:
 	 */
+	/*
+	 * 中断上下文
+	 */
 	hlock->irq_context = 2*(curr->hardirq_context ? 1 : 0) +
 				curr->softirq_context;
 	if (depth) {
@@ -2590,6 +2642,9 @@ static int separate_irq_context(struct task_struct *curr,
 		 * If we cross into another context, reset the
 		 * hash key (this also prevents the checking and the
 		 * adding of the dependency to 'prev'):
+		 */
+		/*
+		 * 如果中断上下文变了，需要重新设置hash key值
 		 */
 		if (prev_hlock->irq_context != hlock->irq_context)
 			return 1;
@@ -2627,6 +2682,9 @@ void lockdep_trace_alloc(gfp_t gfp_mask)
 
 /*
  * Mark a lock with a usage bit, and validate the state transition:
+ */
+/*
+ * 正常返回 0；异常返回 1
  */
 static int mark_lock(struct task_struct *curr, struct held_lock *this,
 			     enum lock_usage_bit new_bit)
@@ -2738,6 +2796,9 @@ struct lock_class_key __lockdep_no_validate__;
  */
 /*
  * 每次加锁的时候都会调用到该函数。维护依赖关系映射，验证加锁尝试:
+ *
+ * 正常返回 0
+ * 异常返回 1
  */
 static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check, int hardirqs_off,
@@ -2758,6 +2819,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (unlikely(!debug_locks))
 		return 0;
 
+	/* 进入该函数的时候，中断必须是关闭的，否则打印提示信息 */
 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 		return 0;
 
@@ -2860,6 +2922,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		chain_head = 1;
 	}
 
+	/* 保存之前的key值 */
 	hlock->prev_chain_key = chain_key;
 	if (separate_irq_context(curr, hlock)) {
 		chain_key = 0;
@@ -3237,6 +3300,7 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (unlikely(current->lockdep_recursion))
 		return;
 
+	/* 关闭中断，避免中断打断lockdep函数执行 */
 	raw_local_irq_save(flags);
 	check_flags(flags);
 

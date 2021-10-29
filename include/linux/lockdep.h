@@ -80,6 +80,9 @@ struct lock_class {
 	 * to every node we attach a list of "forward" and a list of
 	 * "backward" graph nodes.
 	 */
+	/*
+	 * 锁依赖关系的有向图
+	 */
 	struct list_head		locks_after, locks_before;
 
 	/*
@@ -143,9 +146,9 @@ void clear_lock_stats(struct lock_class *class);
  * 将锁实例映射到lock-class 对象，该结构体嵌入到特定的锁实例中.
  */
 struct lockdep_map {
-	struct lock_class_key		*key;
-	struct lock_class		*class_cache;
-	const char			*name;
+	struct lock_class_key		*key;		//key值，可用于查询hash表
+	struct lock_class		*class_cache;	//lock_class缓存
+	const char			*name;		//名称
 #ifdef CONFIG_LOCK_STAT
 	int				cpu;
 	unsigned long			ip;
@@ -170,6 +173,9 @@ struct lock_list {
 	 * The parent field is used to implement breadth-first search, and the
 	 * bit 0 is reused to indicate if the lock has been accessed in BFS.
 	 */
+	/*
+	 * 用于实现广度优先搜索，bit0 位用于重复使用，表示该锁是否在BFS中被访问了
+	 */
 	struct lock_list		*parent;
 };
 
@@ -180,11 +186,11 @@ struct lock_list {
  * 记录所的依赖链表，这样可以缓存:
  */
 struct lock_chain {
-	u8				irq_context;
+	u8				irq_context;	//中断上下文
 	u8				depth;
 	u16				base;
 	struct list_head		entry;
-	u64				chain_key;
+	u64				chain_key;	//key值用于查询hash表
 };
 
 #define MAX_LOCKDEP_KEYS_BITS		13
@@ -209,6 +215,12 @@ struct held_lock {
 	 *
 	 * The task struct holds the current hash value (initialized
 	 * with zero), here we store the previous hash value:
+	 */
+	/*
+	 * 根据这个实现一个依赖关系的单链hash表，随着依赖关系的增加一步步hash。
+	 * hash 值尽量保持唯一。 
+	 * task struct 结构体存储当前的hash 值(初始化成0)，这里我们存储之前的hash
+	 * 值。
 	 */
 	u64				prev_chain_key;
 	unsigned long			acquire_ip;
