@@ -1833,6 +1833,7 @@ struct lock_chain lock_chains[MAX_LOCKDEP_CHAINS];
 int nr_chain_hlocks;
 static u16 chain_hlocks[MAX_LOCKDEP_CHAIN_HLOCKS];
 
+/* 建立lock_chain{} 与 lock_class{} 之间的映射关系 */
 struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i)
 {
 	return lock_classes + chain_hlocks[chain->base + i];
@@ -1887,6 +1888,9 @@ cache_hit:
 	/*
 	 * We have to walk the chain again locked - to avoid duplicates:
 	 */
+	/*
+	 * 为了防止加锁之前有新的元素添加，加锁之后再次查询一遍
+	 */
 	list_for_each_entry(chain, hash_head, entry) {
 		if (chain->chain_key == chain_key) {
 			graph_unlock();
@@ -1921,6 +1925,11 @@ cache_hit:
 		/*
 		 * cn == nf_chain_hlocks 时，返回值为 cn；
 		 * cn != nf_chain_hlocks 时，返回值为 nr_chain_hlocks
+		 * 下边这段代码展开就是:
+		 * {
+		 * 	nr_chain_hlocks = cn + chain->depth;
+		 * 	n = cn;
+		 * }
 		 */
 		n = cmpxchg(&nr_chain_hlocks, cn, cn + chain->depth);
 		if (n == cn)
@@ -2928,6 +2937,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		chain_key = 0;
 		chain_head = 1;
 	}
+	/* 通过当前key值和lock_class在数组中的下标获取一个新的key值 */
 	chain_key = iterate_chain_key(chain_key, id);
 
 	if (!validate_chain(curr, lock, hlock, chain_head, chain_key))

@@ -187,10 +187,10 @@ struct lock_list {
  */
 struct lock_chain {
 	u8				irq_context;	//中断上下文
-	u8				depth;
-	u16				base;
-	struct list_head		entry;
-	u64				chain_key;	//key值用于查询hash表
+	u8				depth;		//TODO: ？？？
+	u16				base;		//TODO: ？？？
+	struct list_head		entry;		//挂到chain hash表中
+	u64				chain_key;	//key值用于查询chain hash表
 };
 
 #define MAX_LOCKDEP_KEYS_BITS		13
