@@ -267,7 +267,7 @@ static void lock_release_holdtime(struct held_lock *hlock)
 		lock_time_inc(&stats->write_holdtime, holdtime);
 	put_lock_stats(stats);
 }
-#else
+#else	/* CONFIG_LOCK_STAT */
 static inline void lock_release_holdtime(struct held_lock *hlock)
 {
 }
@@ -435,7 +435,7 @@ static int save_trace(struct stack_trace *trace)
 unsigned int nr_hardirq_chains;
 unsigned int nr_softirq_chains;
 unsigned int nr_process_chains;
-unsigned int max_lockdep_depth;
+unsigned int max_lockdep_depth;		//proc文件显示使用，其他地方没用到这个变量
 
 #ifdef CONFIG_DEBUG_LOCKDEP
 /*
@@ -848,6 +848,7 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	if (!entry)
 		return 0;
 
+	/* entry 中有元素指向class，建立class 之间的映射关系 */
 	entry->class = this;
 	entry->distance = distance;
 	entry->trace = *trace;
@@ -1601,6 +1602,9 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
  *
  * Returns: 0 on deadlock detected, 1 on OK, 2 on recursive read
  */
+/*
+ * 0 表示检测到死锁；1 正常；2 递归读操作
+ */
 static int
 check_deadlock(struct task_struct *curr, struct held_lock *next,
 	       struct lockdep_map *next_instance, int read)
@@ -1658,6 +1662,9 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
  *
  * Then if all the validations pass, we add the forwards and backwards
  * dependency.
+ */
+/*
+ * 图中添加一条有向的线
  */
 static int
 check_prev_add(struct task_struct *curr, struct held_lock *prev,
@@ -1866,6 +1873,9 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 	 * We can walk it lock-free, because entries only get added
 	 * to the hash:
 	 */
+	/*
+	 * 遍历hash 表的时候不需要使用锁，因为该表项只会添加不会删除
+	 */
 	list_for_each_entry(chain, hash_head, entry) {
 		if (chain->chain_key == chain_key) {
 cache_hit:
@@ -1946,7 +1956,7 @@ cache_hit:
 		}
 		chain_hlocks[chain->base + j] = class - lock_classes;
 	}
-	list_add_tail_rcu(&chain->entry, hash_head);
+	list_add_tail_rcu(&chain->entry, hash_head);		//添加到chainhash_table中
 	debug_atomic_inc(chain_lookup_misses);
 	inc_chains();
 
@@ -2815,12 +2825,6 @@ struct lock_class_key __lockdep_no_validate__;
  * This gets called for every mutex_lock*()/spin_lock*() operation.
  * We maintain the dependency maps and validate the locking attempt:
  */
-/*
- * 每次加锁的时候都会调用到该函数。维护依赖关系映射，验证加锁尝试:
- *
- * 正常返回 0
- * 异常返回 1
- */
 static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check, int hardirqs_off,
 			  struct lockdep_map *nest_lock, unsigned long ip,
@@ -2938,7 +2942,6 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
 		return 0;
 
-	/* TODO: 读到这里了... */
 	chain_key = curr->curr_chain_key;
 	if (!depth) {
 		if (DEBUG_LOCKS_WARN_ON(chain_key != 0))
@@ -3189,12 +3192,17 @@ static int lock_release_nested(struct task_struct *curr,
 
 	/*
 	 * Pop off the top of the lock stack:
+	 * 顶层元素出栈
 	 */
 	depth = curr->lockdep_depth - 1;
 	hlock = curr->held_locks + depth;
 
 	/*
 	 * Is the unlock non-nested:
+	 */
+	/*
+	 * TODO: next...
+	 * 这里的代码没看懂
 	 */
 	if (hlock->instance != lock || hlock->references)
 		return lock_release_non_nested(curr, lock, ip);
