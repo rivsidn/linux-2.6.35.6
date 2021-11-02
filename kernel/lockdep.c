@@ -79,6 +79,7 @@ module_param(lock_stat, int, 0644);
  */
 static arch_spinlock_t lockdep_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
+/* 返回0 表示该模块运行异常 */
 static int graph_lock(void)
 {
 	arch_spin_lock(&lockdep_lock);
@@ -724,7 +725,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 		return NULL;
 	}
 
-	/* 通过key值做hash访问hash 表 */
+	/* 通过key值做hash访问classhash_table */
 	key = lock->key->subkeys + subclass;
 	hash_head = classhashentry(key);
 
@@ -1492,6 +1493,7 @@ static int exclusive_bit(int new_bit)
 
 	/*
 	 * keep state, bit flip the direction and strip read.
+	 * 状态不变，方向取反
 	 */
 	return state | (dir ^ 2);
 }
@@ -2093,13 +2095,11 @@ print_usage_bug(struct task_struct *curr, struct held_lock *this,
 /*
  * Print out an error if an invalid bit is set:
  */
-/*
- * 如果设置了一个无效的位，输出异常信息
- */
 static inline int
 valid_state(struct task_struct *curr, struct held_lock *this,
 	    enum lock_usage_bit new_bit, enum lock_usage_bit bad_bit)
 {
+	/* 如果设置了无效的位，输出错误信息 */
 	if (unlikely(hlock_class(this)->usage_mask & (1 << bad_bit)))
 		return print_usage_bug(curr, this, bad_bit, new_bit);
 	return 1;
@@ -2155,7 +2155,7 @@ print_irq_inversion_bug(struct task_struct *curr,
  * there is no lock matching <mask>:
  */
 /*
- * ENABLE 的情况，调用这个处理函数
+ * USED 的情况，调用这个处理函数
  */
 static int
 check_usage_forwards(struct task_struct *curr, struct held_lock *this,
@@ -2260,7 +2260,7 @@ static int
 mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		enum lock_usage_bit new_bit)
 {
-	int excl_bit = exclusive_bit(new_bit);
+	int excl_bit = exclusive_bit(new_bit);		//状态不变，方向取反
 	int read = new_bit & 1;
 	int dir = new_bit & 2;
 
@@ -2565,45 +2565,55 @@ void lockdep_trace_alloc(gfp_t gfp_mask)
 	raw_local_irq_restore(flags);
 }
 
+/* TODO: 梳理标识位之间的互斥关系 */
 static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 {
 	/*
 	 * If non-trylock use in a hardirq or softirq context, then
 	 * mark the lock as used in these contexts:
 	 */
+	/* 如果设置了try_lock 不会设置USED_IN 标识 */
 	if (!hlock->trylock) {
 		if (hlock->read) {
+			/* 读且当前进程处于中断上下文 */
 			if (curr->hardirq_context)
 				if (!mark_lock(curr, hlock,
 						LOCK_USED_IN_HARDIRQ_READ))
 					return 0;
+			/* 读且当前进程处于软中断上下文 */
 			if (curr->softirq_context)
 				if (!mark_lock(curr, hlock,
 						LOCK_USED_IN_SOFTIRQ_READ))
 					return 0;
 		} else {
+			/* 非读且当前进程处于中断上下文 */
 			if (curr->hardirq_context)
 				if (!mark_lock(curr, hlock, LOCK_USED_IN_HARDIRQ))
 					return 0;
+			/* 非读且当前进程处于软终端上下文 */
 			if (curr->softirq_context)
 				if (!mark_lock(curr, hlock, LOCK_USED_IN_SOFTIRQ))
 					return 0;
 		}
 	}
-	/* 进入到该处理流程的时候中断是否关闭 */
+	/* 如果中断是开启的 */
 	if (!hlock->hardirqs_off) {
 		if (hlock->read) {
+			/* 读且开启中断 */
 			if (!mark_lock(curr, hlock,
 					LOCK_ENABLED_HARDIRQ_READ))
 				return 0;
+			/* 读且中断开启，并开启软中断 */
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
 						LOCK_ENABLED_SOFTIRQ_READ))
 					return 0;
 		} else {
+			/* 非读且开启中断 */
 			if (!mark_lock(curr, hlock,
 					LOCK_ENABLED_HARDIRQ))
 				return 0;
+			/* 非读且中断开启，并开启软中断 */
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
 						LOCK_ENABLED_SOFTIRQ))
@@ -2616,6 +2626,9 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 	 * context checking code. This tests GFP_FS recursion (a lock taken
 	 * during reclaim for a GFP_FS allocation is held over a GFP_FS
 	 * allocation).
+	 */
+	/*
+	 * TODO: GFP_FS 标识位的使用
 	 */
 	if (!hlock->trylock && (curr->lockdep_reclaim_gfp & __GFP_FS)) {
 		if (hlock->read) {
@@ -2692,9 +2705,6 @@ void lockdep_trace_alloc(gfp_t gfp_mask)
 /*
  * Mark a lock with a usage bit, and validate the state transition:
  */
-/*
- * 正常返回 0；异常返回 1
- */
 static int mark_lock(struct task_struct *curr, struct held_lock *this,
 			     enum lock_usage_bit new_bit)
 {
@@ -2707,6 +2717,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	if (likely(hlock_class(this)->usage_mask & new_mask))
 		return 1;
 
+	/* 返回0 的时候表示该模块运行异常 */
 	if (!graph_lock())
 		return 0;
 	/*
@@ -2792,6 +2803,7 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	if (unlikely(!debug_locks))
 		return;
 
+	/* TODO: 这里的代码如何理解 */
 	if (subclass)
 		register_lock_class(lock, subclass, 1);
 }
@@ -2843,6 +2855,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (lock->key == &__lockdep_no_validate__)
 		check = 1;
 
+	/* TODO: 当register_lock_class()设置了force 时候，会不会导致这里获取的class_cache是错误的 */
 	if (!subclass)
 		class = lock->class_cache;
 	/*
@@ -2875,6 +2888,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	class_idx = class - lock_classes + 1;
 
 	if (depth) {
+		/* TODO: 这段代码如何理解 */
 		hlock = curr->held_locks + depth - 1;
 		if (hlock->class_idx == class_idx && nest_lock) {
 			if (hlock->references)
@@ -2924,6 +2938,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
 		return 0;
 
+	/* TODO: 读到这里了... */
 	chain_key = curr->curr_chain_key;
 	if (!depth) {
 		if (DEBUG_LOCKS_WARN_ON(chain_key != 0))
@@ -3251,6 +3266,7 @@ static void check_flags(unsigned long flags)
 	if (!debug_locks)
 		return;
 
+	/* CPU寄存器状态跟进程中状态是否一致 */
 	if (irqs_disabled_flags(flags)) {
 		if (DEBUG_LOCKS_WARN_ON(current->hardirqs_enabled)) {
 			printk("possible reason: unannotated irqs-off.\n");
@@ -3300,6 +3316,17 @@ EXPORT_SYMBOL_GPL(lock_set_class);
 /*
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
+ */
+/*
+ * read 状态
+ * 	0	读获取，与写互斥	
+ * 	1	读获取，不允许递归
+ * 	2	读获取，允许递归
+ *
+ * check 状态
+ * 	0	不检查
+ * 	1	简单检查(释放，进程退出的时候依然获取锁，等等...)
+ * 	2	全面检查
  */
 void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check,
@@ -3761,6 +3788,9 @@ static inline int not_in_range(const void* mem_from, unsigned long mem_len,
  * Called when kernel memory is freed (or unmapped), or if a lock
  * is destroyed or reinitialized - this code checks whether there is
  * any held lock in the memory range of <from> to <to>:
+ */
+/*
+ * 检查内核中的锁是否在固定范围内
  */
 void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 {

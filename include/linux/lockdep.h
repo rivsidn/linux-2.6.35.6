@@ -146,7 +146,7 @@ void clear_lock_stats(struct lock_class *class);
  * 将锁实例映射到lock-class 对象，该结构体嵌入到特定的锁实例中.
  */
 struct lockdep_map {
-	struct lock_class_key		*key;		//key值，可用于查询hash表
+	struct lock_class_key		*key;		//key值，用于查询classhash_table
 	struct lock_class		*class_cache;	//lock_class缓存
 	const char			*name;		//名称
 #ifdef CONFIG_LOCK_STAT
