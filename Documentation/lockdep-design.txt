@@ -165,6 +165,7 @@ partition.
 
 The validator treats a lock that is taken in such a nested fashion as a
 separate (sub)class for the purposes of validation.
+通过子类实现同一类型锁的递归调用。
 
 Note: When changing code to use the _nested() primitives, be careful and
 check really thoroughly that the hierarchy is correctly mapped; otherwise

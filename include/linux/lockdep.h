@@ -66,7 +66,7 @@ struct lock_class {
 	struct list_head		lock_entry;
 
 	struct lockdep_subclass_key	*key;
-	unsigned int			subclass;
+	unsigned int			subclass;	//TODO: ？？？用处
 	unsigned int			dep_gen_id;
 
 	/*
@@ -160,8 +160,8 @@ struct lockdep_map {
  * We only grow the list, never remove from it:
  */
 /*
- * 每个锁都有一个我们在获取这个锁之后的其他锁的链表，仅增长这个锁，
- * 不会删除。
+ * 通过该结构体，将lock_class 链接到lock_class{}->locks_after/lock_class{}->locks_before中，
+ * 建立lock_class{} 与 lock_class{} 之间的映射关系。
  */
 struct lock_list {
 	struct list_head		entry;
@@ -184,10 +184,11 @@ struct lock_list {
  */
 /*
  * 记录所的依赖链表，这样可以缓存:
+ * TODO: 这个结构体的用处？
  */
 struct lock_chain {
 	u8				irq_context;	//中断上下文
-	u8				depth;		//TODO: ？？？
+	u8				depth;		//相同上下文的锁深度
 	u16				base;		//TODO: ？？？
 	struct list_head		entry;		//挂到chain hash表中
 	u64				chain_key;	//key值用于查询chain hash表
@@ -225,6 +226,10 @@ struct held_lock {
 	u64				prev_chain_key;
 	unsigned long			acquire_ip;
 	struct lockdep_map		*instance;
+	/*
+	 * nest_lock 用处是，在nest_lock 内可能出现相同lock_class{} 递归调用的情况，
+	 * 通过nest_lock 表示此时不是死锁。
+	 */
 	struct lockdep_map		*nest_lock;
 #ifdef CONFIG_LOCK_STAT
 	u64 				waittime_stamp;

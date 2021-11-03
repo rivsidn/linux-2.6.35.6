@@ -1873,9 +1873,6 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 	 * We can walk it lock-free, because entries only get added
 	 * to the hash:
 	 */
-	/*
-	 * 遍历hash 表的时候不需要使用锁，因为该表项只会添加不会删除
-	 */
 	list_for_each_entry(chain, hash_head, entry) {
 		if (chain->chain_key == chain_key) {
 cache_hit:
@@ -1899,9 +1896,6 @@ cache_hit:
 		return 0;
 	/*
 	 * We have to walk the chain again locked - to avoid duplicates:
-	 */
-	/*
-	 * 为了防止加锁之前有新的元素添加，加锁之后再次查询一遍
 	 */
 	list_for_each_entry(chain, hash_head, entry) {
 		if (chain->chain_key == chain_key) {
@@ -1958,7 +1952,7 @@ cache_hit:
 	}
 	list_add_tail_rcu(&chain->entry, hash_head);		//添加到chainhash_table中
 	debug_atomic_inc(chain_lookup_misses);
-	inc_chains();
+	inc_chains();						//更新统计计数
 
 	return 1;
 }
@@ -2813,7 +2807,7 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	if (unlikely(!debug_locks))
 		return;
 
-	/* TODO: 这里的代码如何理解 */
+	/* 虽然是一个子类，但是这个子类对应一个完整的lockdep_map{} */
 	if (subclass)
 		register_lock_class(lock, subclass, 1);
 }
@@ -2859,7 +2853,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (lock->key == &__lockdep_no_validate__)
 		check = 1;
 
-	/* TODO: 当register_lock_class()设置了force 时候，会不会导致这里获取的class_cache是错误的 */
+	/* subclass 为 0 的时候，可以通过 lock->class_cache 获取 lock_class */
 	if (!subclass)
 		class = lock->class_cache;
 	/*
@@ -2892,7 +2886,9 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	class_idx = class - lock_classes + 1;
 
 	if (depth) {
-		/* TODO: 这段代码如何理解 */
+		/*
+		 * 允许递归且顶层hlock 就是对应的lock_class 则增加引用计数
+		 */
 		hlock = curr->held_locks + depth - 1;
 		if (hlock->class_idx == class_idx && nest_lock) {
 			if (hlock->references)
@@ -2904,6 +2900,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		}
 	}
 
+	/* 获取没用到的hlock */
 	hlock = curr->held_locks + depth;
 	if (DEBUG_LOCKS_WARN_ON(!class))
 		return 0;
@@ -2942,6 +2939,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (DEBUG_LOCKS_WARN_ON(id >= MAX_LOCKDEP_KEYS))
 		return 0;
 
+	/* TODO: lock_chain{} 这个结构体的用处？ */
 	chain_key = curr->curr_chain_key;
 	if (!depth) {
 		if (DEBUG_LOCKS_WARN_ON(chain_key != 0))
@@ -3031,6 +3029,7 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 	if (hlock->instance == lock)
 		return 1;
 
+	/* TODO: 这部分代码没看明白 */
 	if (hlock->references) {
 		struct lock_class *class = lock->class_cache;
 
@@ -3130,6 +3129,11 @@ lock_release_non_nested(struct task_struct *curr,
 		/*
 		 * We must not cross into another context:
 		 */
+		 /*
+		  * 查找过程中不允许切换上下文。
+		  * 意思是这样的，进程被中断或软中断打断之后，中断、软中断中
+		  * 获取的锁必须要在该次执行过程中释放掉。
+		  */
 		if (prev_hlock && prev_hlock->irq_context != hlock->irq_context)
 			break;
 		if (match_held_lock(hlock, lock))
@@ -3159,12 +3163,18 @@ found_it:
 	 * Now we remove it from the stack, and add back the other
 	 * entries (if any), recalculating the hash along the way:
 	 */
+	/*
+	 * 将要释放的锁从栈中移除，添加之后的锁并重新计算hash。
+	 */
 
 	curr->lockdep_depth = i;
 	curr->curr_chain_key = hlock->prev_chain_key;
 
 	for (i++; i < depth; i++) {
 		hlock = curr->held_locks + i;
+		/*
+		 * TODO: 这么处理有什么影响？对于拓扑改变
+		 */
 		if (!__lock_acquire(hlock->instance,
 			hlock_class(hlock)->subclass, hlock->trylock,
 				hlock->read, hlock->check, hlock->hardirqs_off,
@@ -3199,10 +3209,6 @@ static int lock_release_nested(struct task_struct *curr,
 
 	/*
 	 * Is the unlock non-nested:
-	 */
-	/*
-	 * TODO: next...
-	 * 这里的代码没看懂
 	 */
 	if (hlock->instance != lock || hlock->references)
 		return lock_release_non_nested(curr, lock, ip);

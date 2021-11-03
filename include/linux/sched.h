@@ -1390,7 +1390,7 @@ struct task_struct {
 	 */
 # define MAX_LOCK_DEPTH 48UL
 	u64 curr_chain_key;				//key值，用于查询chain hash表，初始化为0
-	int lockdep_depth;				//锁深度，对应hel_locks[]
+	int lockdep_depth;				//锁深度，是held_locks[] 元素个数
 	unsigned int lockdep_recursion;			//防止递归调用
 	struct held_lock held_locks[MAX_LOCK_DEPTH];
 	gfp_t lockdep_reclaim_gfp;
