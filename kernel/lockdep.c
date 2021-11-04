@@ -1925,6 +1925,7 @@ cache_hit:
 		hlock_next = hlock;
 	}
 	i++;
+	/* 当前上下文的锁长度 */
 	chain->depth = curr->lockdep_depth + 1 - i;
 	cn = nr_chain_hlocks;
 	while (cn + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS) {
@@ -1936,6 +1937,7 @@ cache_hit:
 		 * 	nr_chain_hlocks = cn + chain->depth;
 		 * 	n = cn;
 		 * }
+		 * 意思就是，申请 chain->depth 长度的 chain_hlocks.
 		 */
 		n = cmpxchg(&nr_chain_hlocks, cn, cn + chain->depth);
 		if (n == cn)
@@ -1978,8 +1980,7 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
 		 * - is irq-safe, if this lock is irq-unsafe
 		 * - is softirq-safe, if this lock is hardirq-unsafe
 		 *
-		 * And check whether the new lock's dependency graph
-		 * could lead back to the previous lock.
+		 * And check whether the new lock's dependency graph * could lead back to the previous lock.
 		 *
 		 * any of these scenarios could lead to a deadlock. If
 		 * All validations
@@ -2956,6 +2957,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	/* 通过当前key值和lock_class在数组中的下标获取一个新的key值 */
 	chain_key = iterate_chain_key(chain_key, id);
 
+	/* 相同上下文的held_lock{} 会对应多个lock_chain{} */
 	if (!validate_chain(curr, lock, hlock, chain_head, chain_key))
 		return 0;
 

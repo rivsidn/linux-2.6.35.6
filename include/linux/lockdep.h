@@ -189,7 +189,7 @@ struct lock_list {
 struct lock_chain {
 	u8				irq_context;	//中断上下文
 	u8				depth;		//相同上下文的锁深度
-	u16				base;		//TODO: ？？？
+	u16				base;		//chain_hlocks[]初始位置，与depth 一起确定范围
 	struct list_head		entry;		//挂到chain hash表中
 	u64				chain_key;	//key值用于查询chain hash表
 };
@@ -223,6 +223,7 @@ struct held_lock {
 	 * task struct 结构体存储当前的hash 值(初始化成0)，这里我们存储之前的hash
 	 * 值。
 	 */
+	/* TODO: 这个值用什么用处？ */
 	u64				prev_chain_key;
 	unsigned long			acquire_ip;
 	struct lockdep_map		*instance;
