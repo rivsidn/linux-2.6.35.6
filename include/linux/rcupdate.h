@@ -199,6 +199,7 @@ static inline int rcu_read_lock_sched_held(void)
 
 extern int rcu_my_thread_group_empty(void);
 
+/* 通过在宏定义中嵌入静态数据的方式，每个宏定义都只输出一次 */
 #define __do_rcu_dereference_check(c)					\
 	do {								\
 		static bool __warned;					\

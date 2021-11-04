@@ -512,6 +512,7 @@ void get_usage_chars(struct lock_class *class, char usage[LOCK_USAGE_CHARS])
 	usage[i] = '\0';
 }
 
+/* TODO : next 读到这里了 */
 static void print_lock_name(struct lock_class *class)
 {
 	char str[KSYM_NAME_LEN], usage[LOCK_USAGE_CHARS];
@@ -3951,6 +3952,7 @@ void lockdep_sys_exit(void)
 	}
 }
 
+/* rcu_dereference() 使用的时候必须要在RCU 邻近区内，否则会输出异常信息 */
 void lockdep_rcu_dereference(const char *file, const int line)
 {
 	struct task_struct *curr = current;

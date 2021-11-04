@@ -65,6 +65,7 @@ EXPORT_SYMBOL_GPL(rcu_sched_lock_map);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
+/* 是否使能了RCU lockdep 检测 */
 int debug_lockdep_rcu_enabled(void)
 {
 	return rcu_scheduler_active && debug_locks &&

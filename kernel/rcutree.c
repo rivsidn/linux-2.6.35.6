@@ -1825,6 +1825,12 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
  * idle tasks are prohibited from containing RCU read-side critical
  * sections.  This function also enables RCU lockdep checking.
  */
+/*
+ * 该函数在调度器初始化结束之后被调用，该函数调用之前 idle 进程可能会包含 RCU
+ * 读临界(此时，idle 程序正在启动系统)。该函数调用结束之后，idle 进程禁止获取
+ * RCU读临界区。
+ * 该函数使能RCU lockdep 检测。
+ */
 void rcu_scheduler_starting(void)
 {
 	WARN_ON(num_online_cpus() != 1);

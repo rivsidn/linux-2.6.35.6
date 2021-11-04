@@ -107,6 +107,7 @@ static inline void print_symbol(const char *fmt, unsigned long addr)
 		       __builtin_extract_return_addr((void *)addr));
 }
 
+/* 输出所在地址的符号表 */
 static inline void print_ip_sym(unsigned long ip)
 {
 	printk("[<%p>] %pS\n", (void *) ip, (void *) ip);
