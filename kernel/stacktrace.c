@@ -11,6 +11,7 @@
 #include <linux/kallsyms.h>
 #include <linux/stacktrace.h>
 
+/* space 表示空格的数量 */
 void print_stack_trace(struct stack_trace *trace, int spaces)
 {
 	int i;

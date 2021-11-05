@@ -124,6 +124,7 @@ static inline int debug_locks_off_graph_unlock(void)
 
 static int lockdep_initialized;
 
+/* 建立lock_class{} 之间的依赖关系 */
 unsigned long nr_list_entries;
 static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
 
@@ -285,9 +286,6 @@ LIST_HEAD(all_lock_classes);
 
 /*
  * The lockdep classes are in a hash-table as well, for fast lookup:
- */
-/*
- * lockdep classes 依旧在 hash 表中，用于快速查询
  */
 #define CLASSHASH_BITS		(MAX_LOCKDEP_KEYS_BITS - 1)
 #define CLASSHASH_SIZE		(1UL << CLASSHASH_BITS)
@@ -476,6 +474,7 @@ static const char *usage_str[] =
 
 const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
 {
+	/* 查询符号表地址获取名称 */
 	return kallsyms_lookup((unsigned long)key, NULL, NULL, NULL, str);
 }
 
@@ -484,6 +483,14 @@ static inline unsigned long lock_flag(enum lock_usage_bit bit)
 	return 1UL << bit;
 }
 
+/*
+ * 对应该锁类的几种状态:
+ *
+ * '.'		默认状态
+ * '+'		ENABLE 状态
+ * '-'		USED_IN 状态
+ * '?'		USED_IN 和 ENABLE 状态
+ */
 static char get_usage_char(struct lock_class *class, enum lock_usage_bit bit)
 {
 	char c = '.';
@@ -512,7 +519,12 @@ void get_usage_chars(struct lock_class *class, char usage[LOCK_USAGE_CHARS])
 	usage[i] = '\0';
 }
 
-/* TODO : next 读到这里了 */
+/*
+ * usage 当前有 6 + 1 位，最后一位为 '\0'，结束标识符。
+ * 0	HARDIRQ	USED_IN/ENABLE 状态
+ * 1	HARDIRQ USED_IN_READ/ENABLE_READ 状态
+ * ...	依次类推
+ */
 static void print_lock_name(struct lock_class *class)
 {
 	char str[KSYM_NAME_LEN], usage[LOCK_USAGE_CHARS];
@@ -553,6 +565,7 @@ static void print_lock(struct held_lock *hlock)
 	print_ip_sym(hlock->acquire_ip);
 }
 
+/* 显示进程获取的所有锁 */
 static void lockdep_print_held_locks(struct task_struct *curr)
 {
 	int i, depth = curr->lockdep_depth;
@@ -3628,8 +3641,8 @@ static void zap_class(struct lock_class *class)
 	/*
 	 * Unhash the class and remove it from the all_lock_classes list:
 	 */
-	list_del_rcu(&class->hash_entry);
-	list_del_rcu(&class->lock_entry);
+	list_del_rcu(&class->hash_entry);	//全局hash表
+	list_del_rcu(&class->lock_entry);	//全局链表
 
 	class->key = NULL;
 }
@@ -3639,6 +3652,8 @@ static inline int within(const void *addr, void *start, unsigned long size)
 	return addr >= start && addr < start + size;
 }
 
+/* TODO: 读到这里... */
+/* 模块卸载的时候调用，释放模块中的静态锁 */
 void lockdep_free_key_range(void *start, unsigned long size)
 {
 	struct lock_class *class, *next;
@@ -3670,6 +3685,7 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	raw_local_irq_restore(flags);
 }
 
+/* locking-selftest.c 中会调用到该函数，不影响正常的使用逻辑 */
 void lockdep_reset_lock(struct lockdep_map *lock)
 {
 	struct lock_class *class, *next;
@@ -3678,6 +3694,7 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	int i, j;
 	int locked;
 
+	/* 中断关闭 */
 	raw_local_irq_save(flags);
 
 	/*
@@ -3728,6 +3745,7 @@ void lockdep_init(void)
 	if (lockdep_initialized)
 		return;
 
+	/* hash 表初始化 */
 	for (i = 0; i < CLASSHASH_SIZE; i++)
 		INIT_LIST_HEAD(classhash_table + i);
 
@@ -3806,9 +3824,6 @@ static inline int not_in_range(const void* mem_from, unsigned long mem_len,
  * is destroyed or reinitialized - this code checks whether there is
  * any held lock in the memory range of <from> to <to>:
  */
-/*
- * 检查内核中的锁是否在固定范围内
- */
 void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 {
 	struct task_struct *curr = current;
@@ -3820,9 +3835,11 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 		return;
 
 	local_irq_save(flags);
+	/* 当前已经被获取的锁不能被释放 */
 	for (i = 0; i < curr->lockdep_depth; i++) {
 		hlock = curr->held_locks + i;
 
+		/* held_locks 是在task_struct 中的数组，只需要检测hlock->instance */
 		if (not_in_range(mem_from, mem_len, hlock->instance,
 					sizeof(*hlock->instance)))
 			continue;
@@ -3852,12 +3869,15 @@ static void print_held_locks_bug(struct task_struct *curr)
 	dump_stack();
 }
 
+/* 进程退出的时候调用，检测是否有没释放的锁 */
 void debug_check_no_locks_held(struct task_struct *task)
 {
+	/* 如果有没释放的锁，输出调试信息 */
 	if (unlikely(task->lockdep_depth > 0))
 		print_held_locks_bug(task);
 }
 
+/* 显示所有进程获取到的锁 */
 void debug_show_all_locks(void)
 {
 	struct task_struct *g, *p;
@@ -3903,6 +3923,7 @@ retry:
 			continue;
 		if (p->lockdep_depth)
 			lockdep_print_held_locks(p);
+		/* 如果没有获取到锁，每次循环结束之后都尝试获取一次 */
 		if (!unlock)
 			if (read_trylock(&tasklist_lock))
 				unlock = 1;

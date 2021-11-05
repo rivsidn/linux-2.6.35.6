@@ -65,7 +65,7 @@ struct lock_class {
 	 */
 	struct list_head		lock_entry;
 
-	struct lockdep_subclass_key	*key;
+	struct lockdep_subclass_key	*key;		//指针，使用的时候强转成(unsigned long)
 	unsigned int			subclass;	//TODO: ？？？用处
 	unsigned int			dep_gen_id;
 
@@ -146,7 +146,8 @@ void clear_lock_stats(struct lock_class *class);
  * 将锁实例映射到lock-class 对象，该结构体嵌入到特定的锁实例中.
  */
 struct lockdep_map {
-	struct lock_class_key		*key;		//key值，用于查询classhash_table
+	/* key值，用于查询classhash_table，用于对应唯一的lock_class{} */
+	struct lock_class_key		*key;
 	struct lock_class		*class_cache;	//lock_class缓存
 	const char			*name;		//名称
 #ifdef CONFIG_LOCK_STAT
@@ -200,6 +201,7 @@ struct lock_chain {
  * to make 0 mean no class. This avoids overflowing the class_idx
  * bitfield and hitting the BUG in hlock_class().
  */
+/* lock_class 的个数 */
 #define MAX_LOCKDEP_KEYS		((1UL << MAX_LOCKDEP_KEYS_BITS) - 1)
 
 struct held_lock {
