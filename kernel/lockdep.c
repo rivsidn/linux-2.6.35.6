@@ -60,6 +60,7 @@ module_param(prove_locking, int, 0644);
 #endif
 
 #ifdef CONFIG_LOCK_STAT
+/* 是否使能锁统计 */
 int lock_stat = 1;
 module_param(lock_stat, int, 0644);
 #else
@@ -3582,10 +3583,14 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_contended);
 
+/*
+ * 调用该函数的时候锁一定是获取到了。
+ */
 void lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
 
+	/* 只有使能锁统计的时候才会调用该函数 */
 	if (unlikely(!lock_stat))
 		return;
 
@@ -3606,7 +3611,9 @@ EXPORT_SYMBOL_GPL(lock_acquired);
  * Used by the testsuite, sanitize the validator state
  * after a simulated failure:
  */
-
+/*
+ * 测试套件使用该函数，模拟失败之后恢复验证器的状态。
+ */
 void lockdep_reset(void)
 {
 	unsigned long flags;
@@ -3652,8 +3659,9 @@ static inline int within(const void *addr, void *start, unsigned long size)
 	return addr >= start && addr < start + size;
 }
 
-/* TODO: 读到这里... */
-/* 模块卸载的时候调用，释放模块中的静态锁 */
+/*
+ * 模块卸载的时候调用，释放模块中的静态锁。
+ */
 void lockdep_free_key_range(void *start, unsigned long size)
 {
 	struct lock_class *class, *next;
@@ -3672,7 +3680,7 @@ void lockdep_free_key_range(void *start, unsigned long size)
 		head = classhash_table + i;
 		if (list_empty(head))
 			continue;
-		list_for_each_entry_safe(class, next, head, hash_entry) {
+	list_for_each_entry_safe(class, next, head, hash_entry) {
 			if (within(class->key, start, size))
 				zap_class(class);
 			else if (within(class->name, start, size))

@@ -146,6 +146,7 @@ do_raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long *flags) __acquires(lo
 	arch_spin_lock_flags(&lock->raw_lock, *flags);
 }
 
+/* 成功返回 1 ，失败返回 0 */
 static inline int do_raw_spin_trylock(raw_spinlock_t *lock)
 {
 	return arch_spin_trylock(&(lock)->raw_lock);

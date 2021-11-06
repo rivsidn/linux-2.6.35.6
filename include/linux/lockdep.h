@@ -422,13 +422,17 @@ struct lock_class_key { };
 extern void lock_contended(struct lockdep_map *lock, unsigned long ip);
 extern void lock_acquired(struct lockdep_map *lock, unsigned long ip);
 
+/*
+ * lock_contended() 在尝试获取锁失败的时候调用，意思是我要开始抢占该锁了
+ * lock_acquired()  调用的时候，锁一定是抢占到了，如果没抢占到就是异常了
+ */
 #define LOCK_CONTENDED(_lock, try, lock)			\
 do {								\
 	if (!try(_lock)) {					\
 		lock_contended(&(_lock)->dep_map, _RET_IP_);	\
 		lock(_lock);					\
 	}							\
-	lock_acquired(&(_lock)->dep_map, _RET_IP_);			\
+	lock_acquired(&(_lock)->dep_map, _RET_IP_);		\
 } while (0)
 
 #else /* CONFIG_LOCK_STAT */
