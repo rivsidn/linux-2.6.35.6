@@ -160,6 +160,7 @@ static int lock_point(unsigned long points[], unsigned long ip)
 {
 	int i;
 
+	/* 遍历数组，为空的时候设置退出，相等的时候退出 */
 	for (i = 0; i < LOCKSTAT_POINTS; i++) {
 		if (points[i] == 0) {
 			points[i] = ip;
@@ -2201,6 +2202,10 @@ check_usage_forwards(struct task_struct *curr, struct held_lock *this,
  * Prove that in the backwards-direction subgraph starting at <this>
  * there is no lock matching <mask>:
  */
+/*
+ * TODO: 读到这里了...
+ * 检查是否可能会出现中断反转...
+ */
 static int
 check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 		      enum lock_usage_bit bit, const char *irqclass)
@@ -2221,6 +2226,7 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 					this, 0, irqclass);
 }
 
+/* 输出中断事件 */
 void print_irqtrace_events(struct task_struct *curr)
 {
 	printk("irq event stamp: %u\n", curr->irq_events);
@@ -2343,6 +2349,12 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	return 1;
 }
 
+/*
+ * 总共三种类型:
+ * HARDIRQ
+ * SOFTIRQ
+ * RECLAIM_FS
+ */
 enum mark_type {
 #define LOCKDEP_STATE(__STATE)	__STATE,
 #include "lockdep_states.h"
@@ -2351,6 +2363,9 @@ enum mark_type {
 
 /*
  * Mark all held locks with a usage bit:
+ */
+/*
+ * 用usage bit 设置该进程获取到的所有锁
  */
 static int
 mark_held_locks(struct task_struct *curr, enum mark_type mark)
@@ -2378,6 +2393,10 @@ mark_held_locks(struct task_struct *curr, enum mark_type mark)
 /*
  * Debugging helper: via this flag we know that we are in
  * 'early bootup code', and will warn about any invalid irqs-on event:
+ */
+/*
+ * 通过这个标识位知道我们是否处于'early bootup code'中，无效的irqs-on 事
+ * 事件会报错.
  */
 static int early_boot_irqs_enabled;
 
@@ -2513,6 +2532,10 @@ void trace_softirqs_on(unsigned long ip)
 	 * usage bit for all held locks, if hardirqs are
 	 * enabled too:
 	 */
+	/*
+	 * 开启软中断的时候调用该函数，此时进程中的所有锁
+	 * 都可以处理软中断的 ENABLE(READ) 状态。
+	 */
 	if (curr->hardirqs_enabled)
 		mark_held_locks(curr, SOFTIRQ);
 }
@@ -2543,6 +2566,7 @@ void trace_softirqs_off(unsigned long ip)
 		debug_atomic_inc(redundant_softirqs_off);
 }
 
+/* TODO: 结合内存管理看这部分代码 */
 static void __lockdep_trace_alloc(gfp_t gfp_mask, unsigned long flags)
 {
 	struct task_struct *curr = current;
@@ -3041,12 +3065,13 @@ static int check_unlock(struct task_struct *curr, struct lockdep_map *lock,
 	return 1;
 }
 
+/* 返回 1 表示匹配，返回 0 表示不匹配 */
 static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 {
 	if (hlock->instance == lock)
 		return 1;
 
-	/* TODO: 这部分代码没看明白 */
+	/* TODO: 这部分代码没看懂 */
 	if (hlock->references) {
 		struct lock_class *class = lock->class_cache;
 
@@ -3400,6 +3425,7 @@ void lock_release(struct lockdep_map *lock, int nested,
 }
 EXPORT_SYMBOL_GPL(lock_release);
 
+/* 是否已经获取该锁，是则返回 1 ，否则返回 0 */
 int lock_is_held(struct lockdep_map *lock)
 {
 	unsigned long flags;
@@ -3539,6 +3565,7 @@ found_it:
 	if (hlock->instance != lock)
 		return;
 
+	/* 更新统计信息 */
 	cpu = smp_processor_id();
 	if (hlock->waittime_stamp) {
 		now = lockstat_clock();
