@@ -987,7 +987,14 @@ static inline int get_lock_depth(struct lock_list *child)
 	return depth;
 }
 
-/* 广度有限搜索 */
+/*
+ * 广度有限搜索
+ *
+ * 返回值:
+ *  < 0		算法异常
+ *    1		无死锁
+ *    0		递归死锁
+ */
 static int __bfs(struct lock_list *source_entry,
 		 void *data,
 		 int (*match)(struct lock_list *entry, void *data),
@@ -1056,6 +1063,7 @@ exit:
 	return ret;
 }
 
+/* forwards 是查找 locks_after */
 static inline int __bfs_forwards(struct lock_list *src_entry,
 			void *data,
 			int (*match)(struct lock_list *entry, void *data),
@@ -1065,6 +1073,7 @@ static inline int __bfs_forwards(struct lock_list *src_entry,
 
 }
 
+/* backwards 是查找 locks_before */
 static inline int __bfs_backwards(struct lock_list *src_entry,
 			void *data,
 			int (*match)(struct lock_list *entry, void *data),
@@ -1975,6 +1984,7 @@ cache_hit:
 	return 1;
 }
 
+/* TODO: 独到这里了... */
 static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
 		struct held_lock *hlock, int chain_head, u64 chain_key)
 {
@@ -2120,7 +2130,10 @@ static inline int
 valid_state(struct task_struct *curr, struct held_lock *this,
 	    enum lock_usage_bit new_bit, enum lock_usage_bit bad_bit)
 {
-	/* 如果设置了无效的位，输出错误信息 */
+	/*
+	 * 注意锁的usage_mask 是针对于 lock_class{} 来说的，也就是说这一类
+	 * 锁可以设置的标识位是固定的，如果设置了无效的位，输出错误信息。
+	 */
 	if (unlikely(hlock_class(this)->usage_mask & (1 << bad_bit)))
 		return print_usage_bug(curr, this, bad_bit, new_bit);
 	return 1;
@@ -2201,10 +2214,6 @@ check_usage_forwards(struct task_struct *curr, struct held_lock *this,
 /*
  * Prove that in the backwards-direction subgraph starting at <this>
  * there is no lock matching <mask>:
- */
-/*
- * TODO: 读到这里了...
- * 检查是否可能会出现中断反转...
  */
 static int
 check_usage_backwards(struct task_struct *curr, struct held_lock *this,
@@ -2298,13 +2307,14 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	 * has USED_IN state, which, again, would allow  recursion deadlocks.
 	 */
 	/*
-	 * USED_IN 状态需要向前查找，确保没有依赖的有ENABLED状态，否则会导致递归死锁
-	 * ENABLED 状态需要向后查找，确保没有依赖该锁的处于USED_IN状态，否则会导致死锁
-	 * 
-	 * 理解应该是这样的：
-	 * A(USED_IN) -> B(ENABLE)
-	 * 先获取A，再获取B，如果在获取B的时候被中断打断，中断处理进程就会因为获取不到A 
-	 * 一直阻塞。
+	 * ENABLED 状态需要向后查找，向后查找搜索的是lock_before 链，确保该锁之前
+	 * 	没有USED_IN状态。
+	 * 	否则可能会出现这样的情况，进程执行到ENABLED 状态之前，被中断打断，
+	 * 	恰好该中断执行时候想要获取USED_IN 状态的锁，此时就会导致中断进程
+	 * 	永远获取不到，从而导致死锁。
+	 * USED_IN 状态需要向前查找，向前查找搜索的是lock_after 链表，确保该锁之后
+	 * 	没有ENABLED状态。
+	 * 	理由跟上边描述一致。
 	 */
 	check_usage_f usage = dir ?
 		check_usage_backwards : check_usage_forwards;
@@ -2314,7 +2324,15 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	 * usage states.
 	 */
 	/*
-	 * 确认这个锁没有冲突的使用状态
+	 * 同一个state 中存在 4 中类型的锁:
+	 * USED_IN
+	 * USED_IN_READ
+	 * ENABLE_STATE
+	 * ENABLE_STATE_READ
+	 *
+	 * 针对任意类型，必须要跟 excl_bit 互斥，如果此时不是读，还需要跟读互斥。
+	 * 距离说明，USED_IN 必须跟 ENABLE_STATE 互斥，又与此时不是读，需要跟读
+	 * 互斥。
 	 */
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
@@ -2322,9 +2340,6 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	/*
 	 * Validate that the lock dependencies don't have conflicting usage
 	 * states.
-	 */
-	/*
-	 * 确认锁的依赖关闭并没有冲突的情况
 	 */
 	if ((!read || !dir || STRICT_READ_CHECKS) &&
 			!usage(curr, this, excl_bit, state_name(new_bit & ~1)))
