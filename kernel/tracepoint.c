@@ -245,11 +245,15 @@ static inline void remove_tracepoint(struct tracepoint_entry *e)
 /*
  * Sets the probe callback corresponding to one tracepoint.
  */
+/*
+ * 设置tracepoint 对应的回调函数
+ */
 static void set_tracepoint(struct tracepoint_entry **entry,
 	struct tracepoint *elem, int active)
 {
 	WARN_ON(strcmp((*entry)->name, elem->name) != 0);
 
+	/* 启动的时候调用regfunc()，注销的时候调用unregfunc() */
 	if (elem->regfunc && !elem->state && active)
 		elem->regfunc();
 	else if (elem->unregfunc && elem->state && !active)
@@ -471,6 +475,7 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_unregister_noupdate);
 /**
  * tracepoint_probe_update_all -  update tracepoints
  */
+/* TODO: 读到这里了... */
 void tracepoint_probe_update_all(void)
 {
 	LIST_HEAD(release_probes);
@@ -507,6 +512,7 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_update_all);
 int tracepoint_get_iter_range(struct tracepoint **tracepoint,
 	struct tracepoint *begin, struct tracepoint *end)
 {
+	/* 如果指针为空且begin 不等于 end */
 	if (!*tracepoint && begin != end) {
 		*tracepoint = begin;
 		return 1;
@@ -572,6 +578,7 @@ int tracepoint_module_notify(struct notifier_block *self,
 {
 	struct module *mod = data;
 
+	/* TODO: 为什么模块添加或者删除的时候这里调用了相同的函数？ */
 	switch (val) {
 	case MODULE_STATE_COMING:
 	case MODULE_STATE_GOING:
@@ -589,6 +596,7 @@ struct notifier_block tracepoint_module_nb = {
 
 static int init_tracepoints(void)
 {
+	/* 注册通知链，监控模块加/卸载 */
 	return register_module_notifier(&tracepoint_module_nb);
 }
 __initcall(init_tracepoints);
@@ -600,15 +608,21 @@ __initcall(init_tracepoints);
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 static int sys_tracepoint_refcount;
 
+/* 系统调用添加回调函数的时会调用该函数 */
 void syscall_regfunc(void)
 {
 	unsigned long flags;
 	struct task_struct *g, *t;
 
+	/* 第一次注册时候执行 */
 	if (!sys_tracepoint_refcount) {
 		read_lock_irqsave(&tasklist_lock, flags);
 		do_each_thread(g, t) {
 			/* Skip kernel threads. */
+			/*
+			 * 跳过内核线程。
+			 * 此处设置之后，其他的子进程同时会保留这个标识位。
+			 */
 			if (t->mm)
 				set_tsk_thread_flag(t, TIF_SYSCALL_TRACEPOINT);
 		} while_each_thread(g, t);

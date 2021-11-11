@@ -3168,10 +3168,10 @@ int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 				continue;
 			else if (iter_mod > iter->module)
 				iter->tracepoint = NULL;
-			found = tracepoint_get_iter_range(&iter->tracepoint,
-				iter_mod->tracepoints,
-				iter_mod->tracepoints
-					+ iter_mod->num_tracepoints);
+				found = tracepoint_get_iter_range(&iter->tracepoint,
+								  iter_mod->tracepoints,
+								  iter_mod->tracepoints
+								  + iter_mod->num_tracepoints);
 			if (found) {
 				iter->module = iter_mod;
 				break;

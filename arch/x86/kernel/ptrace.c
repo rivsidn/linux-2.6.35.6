@@ -1348,6 +1348,9 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
  * We must return the syscall number to actually look up in the table.
  * This can be -1L to skip running any syscall at all.
  */
+/*
+ * 系统调用汇编代码中调用该函数，实现系统调用tracepoint功能
+ */
 asmregparm long syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret = 0;
