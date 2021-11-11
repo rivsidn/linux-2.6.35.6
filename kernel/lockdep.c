@@ -1627,9 +1627,6 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
  *
  * Returns: 0 on deadlock detected, 1 on OK, 2 on recursive read
  */
-/*
- * 0 表示检测到死锁；1 正常；2 递归读操作
- */
 static int
 check_deadlock(struct task_struct *curr, struct held_lock *next,
 	       struct lockdep_map *next_instance, int read)
@@ -1984,7 +1981,6 @@ cache_hit:
 	return 1;
 }
 
-/* TODO: 独到这里了... */
 static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
 		struct held_lock *hlock, int chain_head, u64 chain_key)
 {
@@ -1997,6 +1993,13 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
 	 * the dependencies only if this is a new dependency chain.
 	 * (If lookup_chain_cache() returns with 1 it acquires
 	 * graph_lock for us)
+	 */
+	/*
+	 * 只有当 lookup_chain_cache() 返回 1(之前不存在，此处第一次添加)
+	 * 的时候，才会进入到if() 中处理。
+	 * nr_lock_chains 只增不减，但是进程中的hlock 是会随着程序的执行
+	 * 不断增减的，这里检测的目的是，如果这种情况在之前出现过，则不需
+	 * 要进行后续的检查。
 	 */
 	if (!hlock->trylock && (hlock->check == 2) &&
 	    lookup_chain_cache(curr, hlock, chain_key)) {
@@ -3086,7 +3089,6 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 	if (hlock->instance == lock)
 		return 1;
 
-	/* TODO: 这部分代码没看懂 */
 	if (hlock->references) {
 		struct lock_class *class = lock->class_cache;
 
@@ -3099,6 +3101,7 @@ static int match_held_lock(struct held_lock *hlock, struct lockdep_map *lock)
 		if (DEBUG_LOCKS_WARN_ON(!hlock->nest_lock))
 			return 0;
 
+		/* TODO: 程序何时会出现这里返回 1 的情况 */
 		if (hlock->class_idx == class - lock_classes + 1)
 			return 1;
 	}
