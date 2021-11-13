@@ -3142,6 +3142,7 @@ void module_update_tracepoints(void)
 	struct module *mod;
 
 	mutex_lock(&module_mutex);
+	/* 遍历所有模块 */
 	list_for_each_entry(mod, &modules, list)
 		if (!mod->taints)
 			tracepoint_update_probe_range(mod->tracepoints,

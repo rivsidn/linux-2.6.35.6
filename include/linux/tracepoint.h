@@ -58,11 +58,13 @@ extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
 						void *data);
 extern void tracepoint_probe_update_all(void);
 
+/* 遍历的时候用该结构体 */
 struct tracepoint_iter {
 	struct module *module;
 	struct tracepoint *tracepoint;
 };
 
+/* 代码中并没有调用下边这组函数，应该是用作proc 文件显示 */
 extern void tracepoint_iter_start(struct tracepoint_iter *iter);
 extern void tracepoint_iter_next(struct tracepoint_iter *iter);
 extern void tracepoint_iter_stop(struct tracepoint_iter *iter);

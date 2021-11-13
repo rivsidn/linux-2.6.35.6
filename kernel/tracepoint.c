@@ -42,6 +42,10 @@ static DEFINE_MUTEX(tracepoints_mutex);
  * Tracepoint hash table, containing the active tracepoints.
  * Protected by tracepoints_mutex.
  */
+/*
+ * Tracepoint 的hash表，包含着活跃的tracepoints.
+ * 由 tracepoint_mutex 保护.
+ */
 #define TRACEPOINT_HASH_BITS 6
 #define TRACEPOINT_TABLE_SIZE (1 << TRACEPOINT_HASH_BITS)
 static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
@@ -53,12 +57,13 @@ static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
  * Tracepoint entries modifications are protected by the tracepoints_mutex.
  */
 struct tracepoint_entry {
-	struct hlist_node hlist;
+	struct hlist_node hlist;		/* 添加到hash表中 */
 	struct tracepoint_func *funcs;
-	int refcount;	/* Number of times armed. 0 if disarmed. */
+	int refcount;				/* Number of times armed. 0 if disarmed. */
 	char name[0];
 };
 
+/* tracepoint 的处理函数，可以有多个，通过allocate_probes() 申请 */
 struct tp_probes {
 	union {
 		struct rcu_head rcu;
@@ -74,6 +79,7 @@ static inline void *allocate_probes(int count)
 	return p == NULL ? NULL : p->probes;
 }
 
+/* 释放内存 */
 static void rcu_free_old_probes(struct rcu_head *head)
 {
 	kfree(container_of(head, struct tp_probes, u.rcu));
@@ -150,9 +156,10 @@ tracepoint_entry_remove_probe(struct tracepoint_entry *entry,
 		if (!probe ||
 		    (old[nr_probes].func == probe &&
 		     old[nr_probes].data == data))
-			nr_del++;
+			nr_del++;	//统计要删除的个数
 	}
 
+	/* 只有一个probe，删除之后恰好为空 */
 	if (nr_probes - nr_del == 0) {
 		/* N -> 0, (N > 1) */
 		entry->funcs = NULL;
@@ -188,10 +195,11 @@ static struct tracepoint_entry *get_tracepoint(const char *name)
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct tracepoint_entry *e;
-	u32 hash = jhash(name, strlen(name), 0);
+	u32 hash = jhash(name, strlen(name), 0);	//通过名字做hash
 
 	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
 	hlist_for_each_entry(e, node, head, hlist) {
+		/* 匹配名字 */
 		if (!strcmp(name, e->name))
 			return e;
 	}
@@ -301,6 +309,12 @@ tracepoint_update_probe_range(struct tracepoint *begin, struct tracepoint *end)
 	if (!begin)
 		return;
 
+	/*
+	 * tracepoint_entry{} 和 tracepoint{} 之间的关系？
+	 * tracepoint_entry{} 是 tracepoint{} 维护的一个影子数据结构，
+	 * 添加probe 的时候先添加到 tracepoint_entry{} 中，然后通过
+	 * update 提交给 tracepoint{}，实际生效的是 tracepoint{}.
+	 */
 	mutex_lock(&tracepoints_mutex);
 	for (iter = begin; iter < end; iter++) {
 		mark_entry = get_tracepoint(iter->name);
@@ -431,6 +445,9 @@ static void tracepoint_add_old_probes(void *old)
  *
  * caller must call tracepoint_probe_update_all()
  */
+/*
+ * 该函数没有更新操作，必须要自己手动更新
+ */
 int tracepoint_probe_register_noupdate(const char *name, void *probe,
 				       void *data)
 {
@@ -455,6 +472,9 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_register_noupdate);
  *
  * caller must call tracepoint_probe_update_all()
  */
+/*
+ * 该函数没有更新操作，必须要自己手动更新
+ */
 int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
 					 void *data)
 {
@@ -475,7 +495,6 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_unregister_noupdate);
 /**
  * tracepoint_probe_update_all -  update tracepoints
  */
-/* TODO: 读到这里了... */
 void tracepoint_probe_update_all(void)
 {
 	LIST_HEAD(release_probes);
@@ -486,6 +505,7 @@ void tracepoint_probe_update_all(void)
 		mutex_unlock(&tracepoints_mutex);
 		return;
 	}
+	/* 如果old_probes 不为空，将old_probes 中的内容移到release_probes 下 */
 	if (!list_empty(&old_probes))
 		list_replace_init(&old_probes, &release_probes);
 	need_update = 0;
@@ -578,7 +598,6 @@ int tracepoint_module_notify(struct notifier_block *self,
 {
 	struct module *mod = data;
 
-	/* TODO: 为什么模块添加或者删除的时候这里调用了相同的函数？ */
 	switch (val) {
 	case MODULE_STATE_COMING:
 	case MODULE_STATE_GOING:
