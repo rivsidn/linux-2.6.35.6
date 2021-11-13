@@ -1591,8 +1591,6 @@ EXPORT_SYMBOL(__vmalloc);
  *
  *	For tight control over page level allocator and protection flags
  *	use __vmalloc() instead.
- *
- *	TODO: 这个函数的作用？
  */
 void *vmalloc(unsigned long size)
 {

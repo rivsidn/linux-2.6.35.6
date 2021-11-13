@@ -244,6 +244,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
 {
 	void *ret;
 
+	/* 内建函数，如果是一个常量 */
 	if (__builtin_constant_p(size)) {
 		if (size > SLUB_MAX_SIZE)
 			return kmalloc_large(size, flags);
