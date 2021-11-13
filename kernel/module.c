@@ -171,10 +171,11 @@ static void *section_objs(Elf_Ehdr *hdr,
 			  size_t object_size,
 			  unsigned int *num)
 {
+	/* 通过查找命令找到对应的setcion，返回地址并计算个数 */
 	unsigned int sec = find_sec(hdr, sechdrs, secstrings, name);
 
 	/* Section 0 has sh_addr 0 and sh_size 0. */
-	*num = sechdrs[sec].sh_size / object_size;
+	*num = sechdrs[sec].sh_size / object_size;	//计算并返回个数
 	return (void *)sechdrs[sec].sh_addr;
 }
 
