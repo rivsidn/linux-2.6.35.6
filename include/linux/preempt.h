@@ -80,7 +80,7 @@ do { \
 	preempt_check_resched(); \
 } while (0)
 
-#else
+#else	/* !CONFIG_PREEMPT */
 
 #define preempt_disable()		do { } while (0)
 #define preempt_enable_no_resched()	do { } while (0)
@@ -91,7 +91,7 @@ do { \
 #define preempt_enable_no_resched_notrace()	do { } while (0)
 #define preempt_enable_notrace()		do { } while (0)
 
-#endif
+#endif	/* CONFIG_PREEMPT */
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 

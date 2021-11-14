@@ -21,6 +21,7 @@
 struct module;
 struct tracepoint;
 
+/* 钩子函数，实际存在tp_probes{} 结构体中 */
 struct tracepoint_func {
 	void *func;
 	void *data;
@@ -49,9 +50,12 @@ extern int tracepoint_probe_register(const char *name, void *probe, void *data);
  * Disconnect a probe from a tracepoint.
  * Internal API, should not be used directly.
  */
-extern int
-tracepoint_probe_unregister(const char *name, void *probe, void *data);
+extern int tracepoint_probe_unregister(const char *name, void *probe, void *data);
 
+/*
+ * 上边的两个函数内部会调用 update 函数，下边的这两个不会调用update ，
+ * 需要自己调用。
+ */
 extern int tracepoint_probe_register_noupdate(const char *name, void *probe,
 					      void *data);
 extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
@@ -76,6 +80,9 @@ extern int tracepoint_get_iter_range(struct tracepoint **tracepoint,
  * tracepoint_synchronize_unregister must be called between the last tracepoint
  * probe unregistration and the end of module exit to make sure there is no
  * caller executing a probe when it is freed.
+ */
+/*
+ * 模块退出的时候调用该函数，确保内存释放之前没有调用者会使用该钩子函数。
  */
 static inline void tracepoint_synchronize_unregister(void)
 {
@@ -103,6 +110,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  *  will override the TRACE_EVENT and break the second include.
  */
 
+/* TODO: 如何保证该头文件在所有头文件的最后？ */
 #ifndef DECLARE_TRACE
 
 #define TP_PROTO(args...)	args
