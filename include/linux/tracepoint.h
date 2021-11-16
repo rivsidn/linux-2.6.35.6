@@ -131,8 +131,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 	do {								\
 		struct tracepoint_func *it_func_ptr;			\
 		void *it_func;						\
-		void *__data;						\
-									\
+		void *__data;						\ \
 		rcu_read_lock_sched_notrace();				\
 		it_func_ptr = rcu_dereference_sched((tp)->funcs);	\
 		if (it_func_ptr) {					\
