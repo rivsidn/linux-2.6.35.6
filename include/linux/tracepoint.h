@@ -110,7 +110,6 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  *  will override the TRACE_EVENT and break the second include.
  */
 
-/* TODO: 如何保证该头文件在所有头文件的最后？ */
 #ifndef DECLARE_TRACE
 
 #define TP_PROTO(args...)	args
