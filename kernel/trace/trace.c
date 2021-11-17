@@ -717,6 +717,9 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
  *
  * Register a new plugin tracer.
  */
+/*
+ * 注册一个新的tracer.
+ */
 int register_tracer(struct tracer *type)
 __releases(kernel_lock)
 __acquires(kernel_lock)

@@ -244,6 +244,9 @@ struct tracer_flags {
 };
 
 /* Makes more easy to define a tracer opt */
+/*
+ * 通过宏定义使得实现一个 opt 更简单
+ */
 #define TRACER_OPT(s, b)	.name = #s, .bit = b
 
 
