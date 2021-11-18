@@ -16,6 +16,7 @@
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
 
+/* 追踪类型 */
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
 
@@ -42,6 +43,7 @@ enum trace_type {
 	__TRACE_LAST_TYPE,
 };
 
+/* 内存追踪类型 */
 enum kmemtrace_type_id {
 	KMEMTRACE_TYPE_KMALLOC = 0,	/* kmalloc() or kfree(). */
 	KMEMTRACE_TYPE_CACHE,		/* kmem_cache_*(). */
@@ -50,6 +52,8 @@ enum kmemtrace_type_id {
 
 extern struct tracer boot_tracer;
 
+/* TODO: 读到这里了... */
+/* #undef 意思是不管之前的宏定义是什么，后边按照我这里的定义展开 */
 #undef __field
 #define __field(type, item)		type	item;
 
@@ -269,6 +273,26 @@ struct tracer_flags {
  * @print_line: callback that prints a trace
  * @set_flag: signals one of your private flags changed (trace_options file)
  * @flags: your private flags
+ */
+/*
+ * 特定的追踪器，以及追踪器用于跟debugfs 交互的回调函数
+ * @name: 可用追踪器中查看到的名称
+ * @init: 切换到该追踪器时候调用的钩子函数
+ * @reset: 从该追踪器切换出去时候调用的钩子函数
+ * @start: 追踪器开始的时候调用的钩子函数
+ * @stop: 追踪器暂停时候调用的钩子函数
+ * @open: 打开trace 文件时调用的钩子函数
+ * @pipe_open: 打开 trace_pipe 时候调用的钩子函数
+ * @wait_pipe: 覆盖用户等待在 trace_pipe 时的动作
+ * @close: 释放trace 文件的时候调用
+ * @pipe_close: 释放trace_pipe 时调用
+ * @read: 覆盖trace_pipe 文件默认read 回调
+ * @splice_read: 同上
+ * @selftest: 启动时候运行的自测函数
+ * @print_header: 覆盖默认的列描述
+ * @print_line: 输出trace 的回调函数
+ * @set_flag: 设置私有标识位的函数
+ * @flags: 私有的标识位
  */
 struct tracer {
 	const char		*name;

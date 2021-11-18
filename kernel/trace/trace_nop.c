@@ -19,6 +19,7 @@ enum {
 };
 
 /* Options for the tracer (see trace_options file) */
+/* 追踪器选项，可以通过 trace_options 选项查看和修改 */
 static struct tracer_opt nop_opts[] = {
 	/* Option that will be accepted by set_flag callback */
 	{ TRACER_OPT(test_nop_accept, TRACE_NOP_OPT_ACCEPT) },
@@ -62,6 +63,10 @@ static void nop_trace_reset(struct trace_array *tr)
  * If you don't implement it, then the flag setting will be
  * automatically accepted.
  */
+/*
+ * nop 追踪器选项设置函数，此处的两个选项仅仅是用于测试使用，并没
+ * 有实现实际的功能，另外，这两个选项没有在 options 文件中显示。
+ */
 static int nop_set_flag(u32 old_flags, u32 bit, int set)
 {
 	/*
@@ -84,7 +89,6 @@ static int nop_set_flag(u32 old_flags, u32 bit, int set)
 
 	return 0;
 }
-
 
 struct tracer nop_trace __read_mostly =
 {
