@@ -606,6 +606,12 @@ EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
  *  the head (or any page) not to point back to itself. But only
  *  temporarially.
  */
+/*
+ * 让ring_buffer 无锁使得实现更有技巧，虽然写操作只可能发生在所在的CPU
+ * 我们只需要担心中断，但是读可能发生在任何CPU。
+ *
+ * TODO:....
+ */
 
 #define RB_PAGE_NORMAL		0UL
 #define RB_PAGE_HEAD		1UL
@@ -671,6 +677,7 @@ static void rb_set_list_to_head(struct ring_buffer_per_cpu *cpu_buffer,
 {
 	unsigned long *ptr;
 
+	/* 将指针作为(unsigned long)，取出它的指针，并设置 */
 	ptr = (unsigned long *)&list->next;
 	*ptr |= RB_PAGE_HEAD;
 	*ptr &= ~RB_PAGE_UPDATE;
@@ -971,6 +978,7 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 	WARN_ON(!nr_pages);
 
 	for (i = 0; i < nr_pages; i++) {
+		/* 申请buffer_page{} 结构体 */
 		bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
 				    GFP_KERNEL, cpu_to_node(cpu_buffer->cpu));
 		if (!bpage)
@@ -980,6 +988,7 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 
 		list_add(&bpage->list, &pages);
 
+		/* 申请实际内存 */
 		addr = __get_free_page(GFP_KERNEL);
 		if (!addr)
 			goto free_pages;
@@ -991,6 +1000,10 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 	 * The ring buffer page list is a circular list that does not
 	 * start and end with a list head. All page list items point to
 	 * other pages.
+	 */
+	/*
+	 * 将pages 删除掉之后，添加到pages 的所有页面就成了一个环，这个
+	 * 环中没有list_head{}，cpu_buffer->pages 指向这个环中的一个页。
 	 */
 	cpu_buffer->pages = pages.next;
 	list_del(&pages);
@@ -1015,17 +1028,20 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 	unsigned long addr;
 	int ret;
 
+	/* 申请缓冲区头部 */
 	cpu_buffer = kzalloc_node(ALIGN(sizeof(*cpu_buffer), cache_line_size()),
 				  GFP_KERNEL, cpu_to_node(cpu));
 	if (!cpu_buffer)
 		return NULL;
 
+	/* 设置缓冲区头部 */
 	cpu_buffer->cpu = cpu;
 	cpu_buffer->buffer = buffer;
 	spin_lock_init(&cpu_buffer->reader_lock);
 	lockdep_set_class(&cpu_buffer->reader_lock, buffer->reader_lock_key);
 	cpu_buffer->lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
+	/* 申请buffer_page{} 结构体 */
 	bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
 			    GFP_KERNEL, cpu_to_node(cpu));
 	if (!bpage)
@@ -1037,7 +1053,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 	addr = __get_free_page(GFP_KERNEL);
 	if (!addr)
 		goto fail_free_reader;
-	bpage->page = (void *)addr;
+	bpage->page = (void *)addr;	//将page{}结构体用作buffer_data_page{}
 	rb_init_page(bpage->page);
 
 	INIT_LIST_HEAD(&cpu_buffer->reader_page->list);
@@ -1114,6 +1130,7 @@ struct ring_buffer *__ring_buffer_alloc(unsigned long size, unsigned flags,
 	if (!alloc_cpumask_var(&buffer->cpumask, GFP_KERNEL))
 		goto fail_free_buffer;
 
+	/* 申请页面数量 */
 	buffer->pages = DIV_ROUND_UP(size, BUF_PAGE_SIZE);
 	buffer->flags = flags;
 	buffer->clock = trace_clock_local;
@@ -1136,12 +1153,14 @@ struct ring_buffer *__ring_buffer_alloc(unsigned long size, unsigned flags,
 #endif
 	buffer->cpus = nr_cpu_ids;
 
+	/* 申请指针，指向每个CPU的缓冲区 */
 	bsize = sizeof(void *) * nr_cpu_ids;
 	buffer->buffers = kzalloc(ALIGN(bsize, cache_line_size()),
 				  GFP_KERNEL);
 	if (!buffer->buffers)
 		goto fail_free_cpumask;
 
+	/* 申请每个CPU的缓冲区 */
 	for_each_buffer_cpu(buffer, cpu) {
 		buffer->buffers[cpu] =
 			rb_allocate_cpu_buffer(buffer, cpu);

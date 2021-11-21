@@ -273,6 +273,7 @@ void __init parse_early_options(char *cmdline);
 #else /* MODULE(编译成模块时) */
 
 /* Don't use these in modules, but some people do... */
+/* 模块中不应该用这些宏控制，但是有的模块用到了这些，所以在这里用宏定义将他们替换掉 */
 #define early_initcall(fn)		module_init(fn)
 #define core_initcall(fn)		module_init(fn)
 #define postcore_initcall(fn)		module_init(fn)

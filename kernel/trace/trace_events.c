@@ -1265,6 +1265,10 @@ extern struct ftrace_event_call __stop_ftrace_events[];
 
 static char bootup_event_buf[COMMAND_LINE_SIZE] __initdata;
 
+/*
+ * 设置启动参数的时候调用的函数，也就是说启动参数设置在
+ * early_initcall() 之前.
+ */
 static __init int setup_trace_event(char *str)
 {
 	strlcpy(bootup_event_buf, str, COMMAND_LINE_SIZE);

@@ -130,6 +130,7 @@ static int tracing_set_tracer(const char *buf);
 static char bootup_tracer_buf[MAX_TRACER_SIZE] __initdata;
 static char *default_bootup_tracer;
 
+/* 设置启动参数 */
 static int __init set_cmdline_ftrace(char *str)
 {
 	strncpy(bootup_tracer_buf, str, MAX_TRACER_SIZE);
@@ -210,6 +211,9 @@ cycle_t ftrace_now(int cpu)
  * When a snapshot is taken, the link list of the max_tr is swapped
  * with the link list of the global_trace and the buffers are reset for
  * the global_trace so the tracing can continue.
+ */
+/*
+ * 达到最大延迟的时候，将max_tr 作为global_trace 的快照。
  */
 static struct trace_array	max_tr;
 
@@ -312,6 +316,7 @@ static inline void trace_access_lock_init(void)
 {
 	int cpu;
 
+	/* 初始化锁 */
 	for_each_possible_cpu(cpu)
 		mutex_init(&per_cpu(cpu_access_lock, cpu));
 }
@@ -743,11 +748,17 @@ __acquires(kernel_lock)
 	 * need to disable and enable preemption for successful tests.
 	 * So we drop the BKL here and grab it after the tests again.
 	 */
+	/*
+	 * 当获取BKL(big kernel lock) 的时候，不允许抢占，但是trace 的
+	 * 自测需要关闭或者开启抢占，所以我们在这里丢掉BKL，测试结束之
+	 * 后再重新开启。
+	 */
 	unlock_kernel();
 	mutex_lock(&trace_types_lock);
 
 	tracing_selftest_running = true;
 
+	/* 该tracer 是否已经存在 */
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(type->name, t->name) == 0) {
 			/* already found */
@@ -781,6 +792,9 @@ __acquires(kernel_lock)
 		 * internal tracing to verify that everything is in order.
 		 * If we fail, we do not register this tracer.
 		 */
+		/*
+		 * 运行该追踪器的自测程序，如果失败了则不注册该追踪器。
+		 */
 		tracing_reset_online_cpus(tr);
 
 		current_trace = type;
@@ -800,6 +814,7 @@ __acquires(kernel_lock)
 	}
 #endif
 
+	/* 添加tracer */
 	type->next = trace_types;
 	trace_types = type;
 
@@ -880,9 +895,11 @@ void tracing_reset_online_cpus(struct trace_array *tr)
 	struct ring_buffer *buffer = tr->buffer;
 	int cpu;
 
+	/* 关闭所有写操作 */
 	ring_buffer_record_disable(buffer);
 
 	/* Make sure all commits have finished */
+	/* 确保所有写操作完成 */
 	synchronize_sched();
 
 	tr->time_start = ftrace_now(tr->cpu);
@@ -916,6 +933,7 @@ static atomic_t trace_record_cmdline_disabled __read_mostly;
 
 static void trace_init_cmdlines(void)
 {
+	/* 设置成全 f */
 	memset(&map_pid_to_cmdline, NO_CMDLINE_MAP, sizeof(map_pid_to_cmdline));
 	memset(&map_cmdline_to_pid, NO_CMDLINE_MAP, sizeof(map_cmdline_to_pid));
 	cmdline_idx = 0;
@@ -3974,14 +3992,17 @@ struct dentry *tracing_init_dentry(void)
 {
 	static int once;
 
+	/* 如果初始化了直接返回 */
 	if (d_tracer)
 		return d_tracer;
 
+	/* 如果debugfs 没有注册，返回空 */
 	if (!debugfs_initialized())
 		return NULL;
 
 	d_tracer = debugfs_create_dir("tracing", NULL);
 
+	/* 无法创建的时候只提醒一次 */
 	if (!d_tracer && !once) {
 		once = 1;
 		pr_warning("Could not create debugfs directory 'tracing'\n");
@@ -4310,6 +4331,7 @@ static __init int tracer_init_debugfs(void)
 
 	d_tracer = tracing_init_dentry();
 
+	/* 创建文件，参数依次为: 名称，权限，目录，数据，操作 */
 	trace_create_file("tracing_enabled", 0644, d_tracer,
 			&global_trace, &tracing_ctrl_fops);
 
@@ -4432,6 +4454,7 @@ trace_printk_seq(struct trace_seq *s)
 	trace_seq_init(s);
 }
 
+/* 死机的时候，dump所有信息 */
 static void
 __ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 {
@@ -4551,12 +4574,17 @@ __init static int tracer_alloc_buffers(void)
 	int i;
 	int ret = -ENOMEM;
 
+	/* 申请CPU掩码 */
 	if (!alloc_cpumask_var(&tracing_buffer_mask, GFP_KERNEL))
 		goto out;
 
 	if (!alloc_cpumask_var(&tracing_cpumask, GFP_KERNEL))
 		goto out_free_buffer_mask;
 
+	/*
+	 * 如果通过启动参数知道了要开启trace 功能，则申请内存，否则用
+	 * 最小的内存。
+	 */
 	/* To save memory, keep the ring buffer size to its minimum */
 	if (ring_buffer_expanded)
 		ring_buf_size = trace_buf_size;
@@ -4576,8 +4604,8 @@ __init static int tracer_alloc_buffers(void)
 	}
 	global_trace.entries = ring_buffer_size(global_trace.buffer);
 
-
 #ifdef CONFIG_TRACER_MAX_TRACE
+	/* max_tr 作为global_trace 的快照，所以整个内存必须要跟global_trace 一致 */
 	max_tr.buffer = ring_buffer_alloc(ring_buf_size,
 					     TRACE_BUFFER_FLAGS);
 	if (!max_tr.buffer) {
@@ -4592,6 +4620,7 @@ __init static int tracer_alloc_buffers(void)
 
 	/* Allocate the first page for all buffers */
 	for_each_tracing_cpu(i) {
+		/* 分配per_cpu() 变量 */
 		global_trace.data[i] = &per_cpu(global_trace_cpu, i);
 		max_tr.data[i] = &per_cpu(max_tr_data, i);
 	}
@@ -4606,9 +4635,11 @@ __init static int tracer_alloc_buffers(void)
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
 
+	/* 注册通知链 */
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &trace_panic_notifier);
 
+	/* 注册通知链 */
 	register_die_notifier(&trace_die_notifier);
 
 	return 0;
@@ -4640,6 +4671,7 @@ __init static int clear_boot_tracer(void)
 	return 0;
 }
 
+/* 执行初始化的先后顺序 */
 early_initcall(tracer_alloc_buffers);
 fs_initcall(tracer_init_debugfs);
 late_initcall(clear_boot_tracer);

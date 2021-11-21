@@ -52,20 +52,20 @@ enum kmemtrace_type_id {
 
 extern struct tracer boot_tracer;
 
-/* TODO: 读到这里了... */
-/* #undef 意思是不管之前的宏定义是什么，后边按照我这里的定义展开 */
 #undef __field
 #define __field(type, item)		type	item;
 
 #undef __field_struct
 #define __field_struct(type, item)	__field(type, item)
 
+/* 定义为空 */
 #undef __field_desc
 #define __field_desc(type, container, item)
 
 #undef __array
 #define __array(type, item, size)	type	item[size];
 
+/* 定义为空 */
 #undef __array_desc
 #define __array_desc(type, container, item, size)
 
@@ -75,6 +75,14 @@ extern struct tracer boot_tracer;
 #undef F_STRUCT
 #define F_STRUCT(args...)		args
 
+/*
+ * 定义结构体，以ftrace 为例:
+ * struct ftrace_entry {
+ * 	struct trace_entry ent;
+ * 	unsigned long ip;
+ * 	unsigned long parent_ip;
+ * };
+ */
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(name, struct_name, id, tstruct, print)	\
 	struct struct_name {					\
@@ -85,6 +93,7 @@ extern struct tracer boot_tracer;
 #undef TP_ARGS
 #define TP_ARGS(args...)	args
 
+/* 定义为空 */
 #undef FTRACE_ENTRY_DUP
 #define FTRACE_ENTRY_DUP(name, name_struct, id, tstruct, printk)
 
@@ -173,9 +182,14 @@ struct trace_array {
 	struct trace_array_cpu	*data[NR_CPUS];
 };
 
+/* __builtin_types_compatible_p() 检查两种类型是不是相同，如果相同返回 1 */
 #define FTRACE_CMP_TYPE(var, type) \
 	__builtin_types_compatible_p(typeof(var), type *)
 
+/*
+ * 检测 var 和 etype 类型是不是相同，如果相同则将 ent 赋值给 var；
+ * 如果id 不为 0 且 (entry)->type != id，报警告。
+ */
 #undef IF_ASSIGN
 #define IF_ASSIGN(var, entry, etype, id)		\
 	if (FTRACE_CMP_TYPE(var, etype)) {		\
@@ -199,6 +213,9 @@ extern void __ftrace_bad_type(void);
  *  used in the trace_type enum.
  *
  *  If the type can have more than one id, then use zero.
+ */
+/*
+ * 从上到下依次检查，检查到相同的类型就分配
  */
 #define trace_assign_type(var, ent)					\
 	do {								\
@@ -588,6 +605,9 @@ static inline int ftrace_trace_task(struct task_struct *task)
  * @idx: user input length
  * @size: buffer size
  */
+/*
+ * 获取用户输入
+ */
 struct trace_parser {
 	bool		cont;
 	char		*buffer;
@@ -622,6 +642,9 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
  *
  * NOTE: These bits must match the trace_options array in
  *       trace.c.
+ */
+/*
+ * trace_iterator_flags 用于控制输出
  */
 enum trace_iterator_flags {
 	TRACE_ITER_PRINT_PARENT		= 0x01,
