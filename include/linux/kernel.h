@@ -504,9 +504,9 @@ static inline int tracing_is_on(void) { return 0; }
 #endif
 
 enum ftrace_dump_mode {
-	DUMP_NONE,
-	DUMP_ALL,
-	DUMP_ORIG,
+	DUMP_NONE,		//关闭
+	DUMP_ALL,		//dump所有CPU
+	DUMP_ORIG,		//dump引起oops的CPU
 };
 
 #ifdef CONFIG_TRACING

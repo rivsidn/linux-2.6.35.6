@@ -48,6 +48,10 @@
  * On boot up, the ring buffer is set to the minimum size, so that
  * we do not waste memory on systems that are not using tracing.
  */
+/*
+ * 启动的时候，设置ring buffer 为最小值，这样如果没开启trace 功能则
+ * 不会占用内存
+ */
 int ring_buffer_expanded;
 
 /*
@@ -57,10 +61,16 @@ int ring_buffer_expanded;
  * insertions into the ring-buffer such as trace_printk could occurred
  * at the same time, giving false positive or negative results.
  */
+/*
+ * 运行自我检测的时候设置该状态。
+ */
 static bool __read_mostly tracing_selftest_running;
 
 /*
  * If a tracer is running, we do not want to run SELFTEST.
+ */
+/*
+ * 有追踪器正在运行的时候不会去运行SELFTEST.
  */
 bool __read_mostly tracing_selftest_disabled;
 
@@ -87,6 +97,7 @@ static int dummy_set_flag(u32 old_flags, u32 bit, int set)
  */
 static int tracing_disabled = 1;
 
+/* 关闭每个CPU 的ftrace */
 DEFINE_PER_CPU(int, ftrace_cpu_disabled);
 
 static inline void ftrace_disable_cpu(void)
@@ -141,13 +152,15 @@ static int __init set_cmdline_ftrace(char *str)
 }
 __setup("ftrace=", set_cmdline_ftrace);
 
+/* 设置ftrace_dump_on_oops 状态 */
 static int __init set_ftrace_dump_on_oops(char *str)
 {
+	/* dump 所有cpu */
 	if (*str++ != '=' || !*str) {
 		ftrace_dump_on_oops = DUMP_ALL;
 		return 1;
 	}
-
+	/* 只dump 触发异常的CPU */
 	if (!strcmp("orig_cpu", str)) {
 		ftrace_dump_on_oops = DUMP_ORIG;
                 return 1;
@@ -157,6 +170,7 @@ static int __init set_ftrace_dump_on_oops(char *str)
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
+/* 纳秒转微秒，四舍五入 */
 unsigned long long ns2usecs(cycle_t nsec)
 {
 	nsec += 500;
@@ -180,6 +194,10 @@ static struct trace_array	global_trace;
 
 static DEFINE_PER_CPU(struct trace_array_cpu, global_trace_cpu);
 
+/* TODO: 这个函数的作用？ */
+/*
+ * TODO: 读到这里了...
+ */
 int filter_current_check_discard(struct ring_buffer *buffer,
 				 struct ftrace_event_call *call, void *rec,
 				 struct ring_buffer_event *event)
@@ -2881,15 +2899,17 @@ create_trace_option_files(struct tracer *tracer);
 static void
 destroy_trace_option_files(struct trace_option_dentry *topts);
 
+/* 通过buf 指定的名称搜索tracer，并设置为current_trace */
 static int tracing_set_tracer(const char *buf)
 {
-	static struct trace_option_dentry *topts;
+	static struct trace_option_dentry *topts;	//静态变量
 	struct trace_array *tr = &global_trace;
 	struct tracer *t;
 	int ret = 0;
 
 	mutex_lock(&trace_types_lock);
 
+	/* 如果没有拓展，也就是初始化的时候没有申请内存，则此处需要申请内存 */
 	if (!ring_buffer_expanded) {
 		ret = tracing_resize_ring_buffer(trace_buf_size);
 		if (ret < 0)
@@ -2897,6 +2917,7 @@ static int tracing_set_tracer(const char *buf)
 		ret = 0;
 	}
 
+	/* 查找tracer */
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(t->name, buf) == 0)
 			break;
@@ -2912,10 +2933,12 @@ static int tracing_set_tracer(const char *buf)
 	if (current_trace && current_trace->reset)
 		current_trace->reset(tr);
 
+	/* 删除当前的tracer_opt{} */
 	destroy_trace_option_files(topts);
 
 	current_trace = t;
 
+	/* 每次切换tracer 的时候会设置该tracer 独有的option */
 	topts = create_trace_option_files(current_trace);
 
 	if (t->init) {
@@ -4266,17 +4289,21 @@ create_trace_option_files(struct tracer *tracer)
 
 	opts = flags->opts;
 
+	/* 统计个数该tracer option 的个数 */
 	for (cnt = 0; opts[cnt].name; cnt++)
 		;
 
+	/* 申请内存 */
 	topts = kcalloc(cnt + 1, sizeof(*topts), GFP_KERNEL);
 	if (!topts)
 		return NULL;
 
+	/* 创建trace option文件 */
 	for (cnt = 0; opts[cnt].name; cnt++)
 		create_trace_option_file(&topts[cnt], flags,
 					 &opts[cnt]);
 
+	/* 返回 */
 	return topts;
 }
 
@@ -4660,6 +4687,11 @@ __init static int clear_boot_tracer(void)
 	 * find the boot tracer, then clear it out, to prevent
 	 * later registration from accessing the buffer that is
 	 * about to be freed.
+	 */
+	/*
+	 * default_bootup_tracer 指向的内存处于 __init 段内，该部分
+	 * 内存在后续会释放掉，为了防止后续注册的时候还会访问该部分
+	 * 内存，导致程序出现异常，在这里将指针设置成空。
 	 */
 	if (!default_bootup_tracer)
 		return 0;

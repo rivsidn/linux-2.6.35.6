@@ -347,6 +347,9 @@ static void __debugfs_remove(struct dentry *dentry, struct dentry *parent)
  * removed, no automatic cleanup of files will happen when a module is
  * removed, you are responsible here.
  */
+/*
+ * 从debugfs 中删除一个文件或目录
+ */
 void debugfs_remove(struct dentry *dentry)
 {
 	struct dentry *parent;
