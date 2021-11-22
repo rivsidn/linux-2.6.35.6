@@ -117,7 +117,10 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
  * ring buffer 由好多页面组成，每个CPU的页面之间是独立分割开来的。只允许在
  * 当前的CPU上写，但是可以读其他CPU上的数据。
  *
- * TODO: 读到这里了...
+ * 读操作是特殊的，每个CPU 缓冲区，读操作有自己的内存页。当读操作读完了整个
+ * 读页面之后，读方需要跟环形缓冲区中的其他页面交换。
+ *
+ * 只要页面不在缓冲区中，读操作可以对该页面做任何想做的操作。
  */
 
 /*
@@ -137,6 +140,12 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
  * In case of an anomaly, this global flag has a bit set that
  * will permantly disable all ring buffers.
  */
+/*
+ * 向ring buffer 写数据有三层需要满足:
+ * 1) 全局标识位开启
+ * 2) ring buffer 开启写
+ * 3) 每CPU 缓存开启写
+ */
 
 /*
  * Global flag to disable all recording to ring buffers
@@ -147,6 +156,10 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
  *   0      0        : ring buffers are off
  *   1      0        : ring buffers are on
  *   X      1        : ring buffers are permanently disabled
+ */
+/*
+ * 全局标识位关闭所有环形缓冲区的写操作.
+ * 这里有两位: ON, DISABLED
  */
 
 enum {
@@ -159,6 +172,7 @@ enum {
 	RB_BUFFERS_DISABLED	= 1 << RB_BUFFERS_DISABLED_BIT,
 };
 
+/* 全局标识位 */
 static unsigned long ring_buffer_flags __read_mostly = RB_BUFFERS_ON;
 
 #define BUF_PAGE_HDR_SIZE offsetof(struct buffer_data_page, data)
@@ -171,6 +185,7 @@ static unsigned long ring_buffer_flags __read_mostly = RB_BUFFERS_ON;
  */
 void tracing_on(void)
 {
+	/* 设置全局标识位 */
 	set_bit(RB_BUFFERS_ON_BIT, &ring_buffer_flags);
 }
 EXPORT_SYMBOL_GPL(tracing_on);
@@ -185,6 +200,7 @@ EXPORT_SYMBOL_GPL(tracing_on);
  */
 void tracing_off(void)
 {
+	/* 设置全局标识位 */
 	clear_bit(RB_BUFFERS_ON_BIT, &ring_buffer_flags);
 }
 EXPORT_SYMBOL_GPL(tracing_off);
@@ -197,6 +213,7 @@ EXPORT_SYMBOL_GPL(tracing_off);
  */
 void tracing_off_permanent(void)
 {
+	/* 永久性关闭所有缓冲区 */
 	set_bit(RB_BUFFERS_DISABLED_BIT, &ring_buffer_flags);
 }
 
@@ -290,8 +307,9 @@ unsigned ring_buffer_event_length(struct ring_buffer_event *event)
 	if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 		return length;
 	length -= RB_EVNT_HDR_SIZE;
+	/* TODO: 这里的 + sizeof(event->array[0]) 没理解 */
 	if (length > RB_MAX_SMALL_DATA + sizeof(event->array[0]))
-                length -= sizeof(event->array[0]);
+		length -= sizeof(event->array[0]);
 	return length;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_event_length);
@@ -336,6 +354,7 @@ struct buffer_data_page {
 	unsigned char	 data[];	/* data of buffer page */
 };
 
+/* TODO: 读到这里了... */
 /*
  * Note, the buffer_page list must be first. The buffer pages
  * are allocated in cache lines, which means that each buffer

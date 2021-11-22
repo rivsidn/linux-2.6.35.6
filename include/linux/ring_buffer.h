@@ -54,6 +54,9 @@ struct ring_buffer_event {
  *				  array[0..(length+3)/4-1] holds data
  *				  size = 4 + length (bytes)
  */
+/*
+ * 内部的ring buffer类型.
+ */
 enum ring_buffer_type {
 	RINGBUF_TYPE_DATA_TYPE_LEN_MAX = 28,
 	RINGBUF_TYPE_PADDING,
