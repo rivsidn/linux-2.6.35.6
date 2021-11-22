@@ -113,6 +113,12 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
  * We will be using cmpxchg soon to make all this lockless.
  *
  */
+/*
+ * ring buffer 由好多页面组成，每个CPU的页面之间是独立分割开来的。只允许在
+ * 当前的CPU上写，但是可以读其他CPU上的数据。
+ *
+ * TODO: 读到这里了...
+ */
 
 /*
  * A fast way to enable or disable all ring buffers is to

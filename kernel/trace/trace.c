@@ -454,6 +454,7 @@ static const char *trace_options[] = {
 	NULL
 };
 
+/* 内核实现了3 种锁，对外只呈现了2 种 */
 static struct {
 	u64 (*func)(void);
 	const char *name;

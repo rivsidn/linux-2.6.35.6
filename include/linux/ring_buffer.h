@@ -11,6 +11,9 @@ struct ring_buffer_iter;
 /*
  * Don't refer to this struct directly, use functions below.
  */
+/*
+ * 不要直接使用这个结构体，使用下边的函数。
+ */
 struct ring_buffer_event {
 	kmemcheck_bitfield_begin(bitfield);
 	u32		type_len:5, time_delta:27;
