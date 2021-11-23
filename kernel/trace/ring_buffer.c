@@ -652,7 +652,14 @@ EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
  * 让ring_buffer 无锁使得实现更有技巧，虽然写操作只可能发生在所在的CPU
  * 我们只需要担心中断，但是读可能发生在任何CPU。
  *
- * TODO: 读到这里了...
+ * 正在读的page 不在ring buffer内，但是当读端读完这个页面之后，需要跟
+ * 缓冲区内的页面交换一个新的读页面。读端需要获取head(从tail 位置开始
+ * 往后写)。但是如果写端工作在overwrite 模式，并且回来了，这时候需要将
+ * head 向前移动。
+ *
+ * 问题就在这里。
+ *
+ * TODO: 这个地方没看懂，等到时候结合代码看。
  */
 
 #define RB_PAGE_NORMAL		0UL
@@ -672,6 +679,7 @@ static struct list_head *rb_list_head(struct list_head *list)
 {
 	unsigned long val = (unsigned long)list;
 
+	/* 移除掉指针中的标识位 */
 	return (struct list_head *)(val & ~RB_FLAG_MASK);
 }
 
@@ -683,6 +691,7 @@ static struct list_head *rb_list_head(struct list_head *list)
  * the reader page). But if the next page is a header page,
  * its flags will be non zero.
  */
+/* TODO: 读到这里了... */
 static int inline
 rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 		struct buffer_page *page, struct list_head *list)
@@ -706,8 +715,10 @@ rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
  */
 static int rb_is_reader_page(struct buffer_page *page)
 {
+	/* 前边的链表 */
 	struct list_head *list = page->list.prev;
 
+	/* 如果前边链表的next 不指向该页面，则是读页面 */
 	return rb_list_head(list->next) != &page->list;
 }
 
@@ -721,8 +732,8 @@ static void rb_set_list_to_head(struct ring_buffer_per_cpu *cpu_buffer,
 
 	/* 将指针作为(unsigned long)，取出它的指针，并设置 */
 	ptr = (unsigned long *)&list->next;
-	*ptr |= RB_PAGE_HEAD;
-	*ptr &= ~RB_PAGE_UPDATE;
+	*ptr |= RB_PAGE_HEAD;		//设置head 位
+	*ptr &= ~RB_PAGE_UPDATE;	//取消update 位
 }
 
 /*
@@ -738,6 +749,9 @@ static void rb_head_page_activate(struct ring_buffer_per_cpu *cpu_buffer)
 
 	/*
 	 * Set the previous list pointer to have the HEAD flag.
+	 */
+	/*
+	 * head->list.prev 中设置 head 标识位.
 	 */
 	rb_set_list_to_head(cpu_buffer, head->list.prev);
 }
@@ -1028,7 +1042,7 @@ static int rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 
 		rb_check_bpage(cpu_buffer, bpage);
 
-		list_add(&bpage->list, &pages);
+		list_add(&bpage->list, &pages);		//添加到pages 链表头中
 
 		/* 申请实际内存 */
 		addr = __get_free_page(GFP_KERNEL);
