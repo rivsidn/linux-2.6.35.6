@@ -354,7 +354,6 @@ struct buffer_data_page {
 	unsigned char	 data[];	/* data of buffer page */
 };
 
-/* TODO: 读到这里了... */
 /*
  * Note, the buffer_page list must be first. The buffer pages
  * are allocated in cache lines, which means that each buffer
@@ -362,6 +361,11 @@ struct buffer_data_page {
  * the least significant bits will be zero. We use this to
  * add flags in the list struct pointers, to make the ring buffer
  * lockless.
+ */
+/*
+ * list 必须在 buffer_page 头部。
+ * buffer_page{} 结构体申请的时候是缓存对齐的，这样就意味着指针
+ * 的最低位是 0。我们可以用这位作为标识位，来实现无锁环缓冲。
  */
 struct buffer_page {
 	struct list_head list;		/* list of buffer pages */
@@ -398,6 +402,9 @@ static void rb_init_page(struct buffer_data_page *bpage)
  *
  * Returns the amount of data on the page, including buffer page header.
  */
+/*
+ * 返回页面上数据量大小，包括缓冲区头部.
+ */
 size_t ring_buffer_page_len(void *page)
 {
 	return local_read(&((struct buffer_data_page *)page)->commit)
@@ -410,12 +417,17 @@ size_t ring_buffer_page_len(void *page)
  */
 static void free_buffer_page(struct buffer_page *bpage)
 {
+	/* 释放页面 */
 	free_page((unsigned long)bpage->page);
+	/* 释放内存 */
 	kfree(bpage);
 }
 
 /*
  * We need to fit the time_stamp delta into 27 bits.
+ */
+/*
+ * 检测时间戳是否正常，异常返回 1
  */
 static inline int test_time_stamp(u64 delta)
 {
@@ -424,14 +436,17 @@ static inline int test_time_stamp(u64 delta)
 	return 0;
 }
 
+/* buffer page 大小 */
 #define BUF_PAGE_SIZE (PAGE_SIZE - BUF_PAGE_HDR_SIZE)
 
+/* buffer page data 最大数量 */
 /* Max payload is BUF_PAGE_SIZE - header (8bytes) */
 #define BUF_MAX_DATA_SIZE (BUF_PAGE_SIZE - (sizeof(u32) * 2))
 
 /* Max number of timestamps that can fit on a page */
 #define RB_TIMESTAMPS_PER_PAGE	(BUF_PAGE_SIZE / RB_LEN_TIME_STAMP)
 
+/* debugfs 信息输出 */
 int ring_buffer_print_page_header(struct trace_seq *s)
 {
 	struct buffer_data_page field;
@@ -543,6 +558,7 @@ static inline u64 rb_time_stamp(struct ring_buffer *buffer)
 	return buffer->clock() << DEBUG_SHIFT;
 }
 
+/* 返回环形缓冲区的时间戳 */
 u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
 {
 	u64 time;
@@ -555,6 +571,7 @@ u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_time_stamp);
 
+/* ts: time stamp 时间戳 */
 void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
 				      int cpu, u64 *ts)
 {
@@ -635,7 +652,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
  * 让ring_buffer 无锁使得实现更有技巧，虽然写操作只可能发生在所在的CPU
  * 我们只需要担心中断，但是读可能发生在任何CPU。
  *
- * TODO:....
+ * TODO: 读到这里了...
  */
 
 #define RB_PAGE_NORMAL		0UL

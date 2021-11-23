@@ -16,6 +16,7 @@
  */
 
 /* Implement in terms of atomics. */
+/* 确保本地CPU的原子操作 */
 
 /* Don't use typedef: don't want them to be mixed with atomic_t's. */
 typedef struct
