@@ -662,6 +662,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_normalize_time_stamp);
  * TODO: 这个地方没看懂，等到时候结合代码看。
  */
 
+/* 如果存在标识位的话，标识位设置在head->prev->next 中 */
 #define RB_PAGE_NORMAL		0UL
 #define RB_PAGE_HEAD		1UL
 #define RB_PAGE_UPDATE		2UL
@@ -691,7 +692,6 @@ static struct list_head *rb_list_head(struct list_head *list)
  * the reader page). But if the next page is a header page,
  * its flags will be non zero.
  */
-/* TODO: 读到这里了... */
 static int inline
 rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 		struct buffer_page *page, struct list_head *list)
@@ -756,6 +756,7 @@ static void rb_head_page_activate(struct ring_buffer_per_cpu *cpu_buffer)
 	rb_set_list_to_head(cpu_buffer, head->list.prev);
 }
 
+/* 清空head 标识位 */
 static void rb_list_head_clear(struct list_head *list)
 {
 	unsigned long *ptr = (unsigned long *)&list->next;
@@ -778,6 +779,7 @@ rb_head_page_deactivate(struct ring_buffer_per_cpu *cpu_buffer)
 		rb_list_head_clear(hd);
 }
 
+/* TODO: 读到这里了... */
 static int rb_head_page_set(struct ring_buffer_per_cpu *cpu_buffer,
 			    struct buffer_page *head,
 			    struct buffer_page *prev,
@@ -1664,6 +1666,9 @@ rb_update_event(struct ring_buffer_event *event,
  *           0 to continue
  *          -1 on error
  */
+/*
+ * 读端碰到了head 页
+ */
 static int
 rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 		    struct buffer_page *tail_page,
@@ -1681,6 +1686,11 @@ rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 	 * forward, and protect against both readers on
 	 * other CPUs and writers coming in via interrupts.
 	 */
+	/*
+	 * 难点在这里。
+	 * 我们需要将head 往前移动，并且需要保护在其他CPU上进行的
+	 * 读操作，和通过中断来的写操作。
+	 */
 	type = rb_head_page_set_update(cpu_buffer, next_page, tail_page,
 				       RB_PAGE_HEAD);
 
@@ -1693,6 +1703,15 @@ rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 	 *  MOVED  - a reader on another CPU moved the next
 	 *           pointer to its reader page. Give up
 	 *           and try again.
+	 */
+	/*
+	 * 类型是以下四种之一:
+	 *  NORMAL - 中断已经帮我们移动了
+	 *  HEAD   - 我们是地一个到这里的
+	 *  UPDATE - 我们是终端打断了一个正在执行的移动
+	 *  MOVED  - 另一个CPU上的读操作将next 指针移动到了他的
+	 *           读页面上。
+	 *           放弃这次操作，再尝试一次。
 	 */
 
 	switch (type) {

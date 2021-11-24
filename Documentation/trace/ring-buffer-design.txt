@@ -1,4 +1,5 @@
 		Lockless Ring Buffer Design
+		(无锁环缓冲队列设计)
 		===========================
 
 Copyright 2009 Red Hat Inc.
@@ -15,7 +16,7 @@ Terminology used in this Document
 ---------------------------------
 
 tail - where new writes happen in the ring buffer.
-
+     - 开始写的位置
 head - where new reads happen in the ring buffer.
 
 producer - the task that writes into the ring buffer (same as writer)
@@ -47,10 +48,12 @@ cmpxchg - hardware-assisted atomic transaction that performs the following:
    To see if the update was successful a compare of R == C may be used.
 
 The Generic Ring Buffer
+通用的换缓冲
 -----------------------
 
 The ring buffer can be used in either an overwrite mode or in
 producer/consumer mode.
+支持两种模式: 覆盖模式，生产者/消费者模式
 
 Producer/consumer mode is where if the producer were to fill up the
 buffer before the consumer could free up anything, the producer
@@ -65,7 +68,10 @@ but a writer may interrupt another writer, but it must finish writing
 before the previous writer may continue. This is very important to the
 algorithm. The writers act like a "stack". The way interrupts works
 enforces this behavior.
-
+同一时刻只能有一个写端正在运行，但是写端可能会被其他写端中断，但是在之前
+的被中断的写端重新开始执行的时候，中断他的写操作必须已经结束。该部分对这
+个算法来说非常重要。写操作工作的像一个栈，中断的工作方式强制要求这种工作
+方式。
 
   writer1 start
      <preempted> writer2 start
@@ -92,6 +98,7 @@ The ring buffer is made up of a list of pages held together by a linked list.
 
 At initialization a reader page is allocated for the reader that is not
 part of the ring buffer.
+初始化的时候，reader 页面是单独申请的，并不作为缓冲区的一部分。
 
 The head_page, tail_page and commit_page are all initialized to point
 to the same page.
@@ -99,6 +106,7 @@ to the same page.
 The reader page is initialized to have its next pointer pointing to
 the head page, and its previous pointer pointing to a page before
 the head page.
+reader 页面初始化成，next 指针指向head 页，prev 指针指向head 页之前的页。
 
 The reader has its own page to use. At start up time, this page is
 allocated but is not attached to the list. When the reader wants
@@ -110,6 +118,8 @@ new head page.
 
 Once the new page is given to the reader, the reader could do what
 it wants with it, as long as a writer has left that page.
+一旦读端获取到页面之后，读端可以做它任意想做的，因为写端已经无法访问
+该页面了。
 
 A sample of how the reader page is swapped: Note this does not
 show the head page in the buffer, it is for demonstrating a swap
@@ -127,7 +137,7 @@ only.
                    | +-------------+ |
                    +-----------------+
 
-
+(1) 读页面指向缓冲区
   +------+
   |reader|          RING BUFFER
   |page  |-------------------+
@@ -141,6 +151,7 @@ only.
     |              +-----------------+   |
     +------------------------------------+
 
+(2) 缓冲区页面指向读页面
   +------+
   |reader|          RING BUFFER
   |page  |-------------------+
@@ -154,6 +165,7 @@ only.
     |  +-----------------------------+   |
     +------------------------------------+
 
+(3) 去掉最新读页面指向缓冲区的指针，获取最新的读页面
   +------+
   |buffer|          RING BUFFER
   |page  |-------------------+
@@ -166,7 +178,6 @@ only.
     |  |                             |   |
     |  +-----------------------------+   |
     +------------------------------------+
-
 
 
 It is possible that the page swapped is the commit page and the tail page,
@@ -209,6 +220,7 @@ The main pointers:
 The commit page only is updated by the outermost writer in the
 writer stack. A writer that preempts another writer will not move the
 commit page.
+commit 页之会被写栈最外围的写操作更新，抢占了别的写操作之后不会移动 commit 页。
 
 When data is written into the ring buffer, a position is reserved
 in the ring buffer and passed back to the writer. When the writer
@@ -217,7 +229,9 @@ is finished writing data into that position, it commits the write.
 Another write (or a read) may take place at anytime during this
 transaction. If another write happens it must finish before continuing
 with the previous write.
+如果发生了其他的写操作，该写操作返回到之前写操作之前，必须已经执行结束。
 
+写操作没有被其他写操作打断的情况。
 
    Write reserve:
 
@@ -282,6 +296,8 @@ The commit pointer points to the last write location that was
 committed without preempting another write. When a write that
 preempted another write is committed, it only becomes a pending commit
 and will not be a full commit until all writes have been committed.
+只有在没抢占其他写操作的时候才会提交，如果抢占了其他写操作，此时
+不会提交，会将提交挂起，直到所有的写操作完成。
 
 The commit page points to the page that has the last full commit.
 The tail page points to the page with the last write (before
@@ -291,6 +307,8 @@ The tail page is always equal to or after the commit page. It may
 be several pages ahead. If the tail page catches up to the commit
 page then no more writes may take place (regardless of the mode
 of the ring buffer: overwrite and produce/consumer).
+如果当tail 页赶上了commit 页，此时不允许有任何写操作(无论是覆盖模式
+还是生产者消费者模式)。
 
 The order of pages is:
 
@@ -307,6 +325,9 @@ Possible scenario:
 <---|   |--->|   |--->|   |--->|   |--->
 --->|   |<---|   |<---|   |<---|   |<---
     +---+    +---+    +---+    +---+
+
+
+TODO: 读到这里了
 
 There is a special case that the head page is after either the commit page
 and possibly the tail page. That is when the commit (and tail) page has been
