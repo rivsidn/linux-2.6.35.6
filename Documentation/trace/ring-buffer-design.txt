@@ -182,6 +182,8 @@ only.
 
 It is possible that the page swapped is the commit page and the tail page,
 if what is in the ring buffer is less than what is held in a buffer page.
+交换出去的是commit page 和tail page 也是有可能的，这种情况发生在当缓冲区
+中的内容不满一个buffer page也时候。
 
 
           reader page    commit page   tail page
@@ -203,24 +205,32 @@ This case is still valid for this algorithm.
 When the writer leaves the page, it simply goes into the ring buffer
 since the reader page still points to the next location in the ring
 buffer.
+该算法在这种情况在下依然是正确的。
+当写端离开这个页面的时候，只需要移动到缓冲区中，因为reader page依然指向
+缓冲区的下个页面.
 
 
 The main pointers:
 
   reader page - The page used solely by the reader and is not part
                 of the ring buffer (may be swapped in)
+		读端获取的页面，读端单独获取，并不是环缓冲区的一部分.
 
   head page - the next page in the ring buffer that will be swapped
               with the reader page.
+	      交换到读端的下一个页面.
 
   tail page - the page where the next write will take place.
+              下一个写的页面.
 
   commit page - the page that last finished a write.
+                最近依次结束写的页面
 
 The commit page only is updated by the outermost writer in the
 writer stack. A writer that preempts another writer will not move the
 commit page.
-commit 页之会被写栈最外围的写操作更新，抢占了别的写操作之后不会移动 commit 页。
+commit 页之会被写栈最外围的(也就是第一个)写操作更新，抢占了别的写操作
+之后不会移动 commit 页。
 
 When data is written into the ring buffer, a position is reserved
 in the ring buffer and passed back to the writer. When the writer
@@ -229,9 +239,9 @@ is finished writing data into that position, it commits the write.
 Another write (or a read) may take place at anytime during this
 transaction. If another write happens it must finish before continuing
 with the previous write.
-如果发生了其他的写操作，该写操作返回到之前写操作之前，必须已经执行结束。
+返回到之前的写操作之前，此时的写操作必须完全结束.
 
-写操作没有被其他写操作打断的情况。
+写操作没有被其他写操作打断的情况，如下:
 
    Write reserve:
 
@@ -296,12 +306,11 @@ The commit pointer points to the last write location that was
 committed without preempting another write. When a write that
 preempted another write is committed, it only becomes a pending commit
 and will not be a full commit until all writes have been committed.
-只有在没抢占其他写操作的时候才会提交，如果抢占了其他写操作，此时
-不会提交，会将提交挂起，直到所有的写操作完成。
 
 The commit page points to the page that has the last full commit.
-The tail page points to the page with the last write (before
-committing).
+The tail page points to the page with the last write (before committing).
+commit 页面指向最后完成commit 的页面.
+tail   页面指向最后一次write 的页面.
 
 The tail page is always equal to or after the commit page. It may
 be several pages ahead. If the tail page catches up to the commit
@@ -356,15 +365,19 @@ and a reader swaps out a page, it will be swapping out the commit page.
 
 In this case, the head page will not move when the tail and commit
 move back into the ring buffer.
+这种情况时，当tail 和commit 移动到环缓冲区的时候，head page 不会移动。
 
 The reader cannot swap a page into the ring buffer if the commit page
 is still on that page. If the read meets the last commit (real commit
 not pending or reserved), then there is nothing more to read.
 The buffer is considered empty until another full commit finishes.
+当commit page 依旧在该页面的时候，读页面不能交换ring buffer 中的页面.
 
 When the tail meets the head page, if the buffer is in overwrite mode,
 the head page will be pushed ahead one. If the buffer is in producer/consumer
 mode, the write will fail.
+当tail 遇到head page，如果缓冲区是覆盖模式，head page 会向前推进，如果是
+生产者/消费者模式，写会失败.
 
 Overwrite mode:
 
@@ -405,6 +418,8 @@ Overwrite mode:
 
 Note, the reader page will still point to the previous head page.
 But when a swap takes place, it will use the most recent head page.
+此时，reader page 仍然指向之前的head page.
+但是当交换发生的时候，会使用最近的head page.
 
 
 Making the Ring Buffer Lockless:
