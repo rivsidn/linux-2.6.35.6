@@ -327,8 +327,6 @@ Possible scenario:
     +---+    +---+    +---+    +---+
 
 
-TODO: 读到这里了
-
 There is a special case that the head page is after either the commit page
 and possibly the tail page. That is when the commit (and tail) page has been
 swapped with the reader page. This is because the head page is always
@@ -410,6 +408,7 @@ But when a swap takes place, it will use the most recent head page.
 
 
 Making the Ring Buffer Lockless:
+使得环缓冲区无锁化
 --------------------------------
 
 The main idea behind the lockless algorithm is to combine the moving
@@ -449,6 +448,7 @@ Two flags will be kept by these two bits:
 The above pointer "-H->" would have the HEADER flag set. That is
 the next page is the next page to be swapped out by the reader.
 This pointer means the next page is the head page.
+该指针表示下一个页是head 页。
 
 When the tail page meets the head pointer, it will use cmpxchg to
 change the pointer to the UPDATE state:
@@ -570,6 +570,8 @@ prev pointers may not.
 Note, the way to determine a reader page is simply by examining the previous
 pointer of the page. If the next pointer of the previous page does not
 point back to the original page, then the original page is a reader page:
+检查一个页面是不是读页面的方法是，如果一个页面的prev 页面没有指回自己，那么
+这个页面就是一个读页面。
 
 
              +--------+
