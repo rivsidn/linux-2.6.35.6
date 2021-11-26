@@ -779,7 +779,6 @@ rb_head_page_deactivate(struct ring_buffer_per_cpu *cpu_buffer)
 		rb_list_head_clear(hd);
 }
 
-/* TODO: 读到这里了... */
 static int rb_head_page_set(struct ring_buffer_per_cpu *cpu_buffer,
 			    struct buffer_page *head,
 			    struct buffer_page *prev,
@@ -797,12 +796,14 @@ static int rb_head_page_set(struct ring_buffer_per_cpu *cpu_buffer,
 		      val | old_flag, val | new_flag);
 
 	/* check if the reader took the page */
+	/* 检查是不是reader 移动了页面 */
 	if ((ret & ~RB_FLAG_MASK) != val)
 		return RB_PAGE_MOVED;
 
 	return ret & RB_FLAG_MASK;
 }
 
+/* 设置UPDATE 状态 */
 static int rb_head_page_set_update(struct ring_buffer_per_cpu *cpu_buffer,
 				   struct buffer_page *head,
 				   struct buffer_page *prev,
@@ -812,6 +813,7 @@ static int rb_head_page_set_update(struct ring_buffer_per_cpu *cpu_buffer,
 				old_flag, RB_PAGE_UPDATE);
 }
 
+/* 设置HEAD 状态 */
 static int rb_head_page_set_head(struct ring_buffer_per_cpu *cpu_buffer,
 				 struct buffer_page *head,
 				 struct buffer_page *prev,
@@ -821,6 +823,7 @@ static int rb_head_page_set_head(struct ring_buffer_per_cpu *cpu_buffer,
 				old_flag, RB_PAGE_HEAD);
 }
 
+/* 设置NORMAL 状态 */
 static int rb_head_page_set_normal(struct ring_buffer_per_cpu *cpu_buffer,
 				   struct buffer_page *head,
 				   struct buffer_page *prev,
@@ -830,6 +833,7 @@ static int rb_head_page_set_normal(struct ring_buffer_per_cpu *cpu_buffer,
 				old_flag, RB_PAGE_NORMAL);
 }
 
+/* 取bpage 指向页面的下一个页面，将指针赋值给bpage */
 static inline void rb_inc_page(struct ring_buffer_per_cpu *cpu_buffer,
 			       struct buffer_page **bpage)
 {
@@ -846,10 +850,12 @@ rb_set_head_page(struct ring_buffer_per_cpu *cpu_buffer)
 	struct list_head *list;
 	int i;
 
+	/* 如果cpu_buffer->head_page 为空，告警，返回空 */
 	if (RB_WARN_ON(cpu_buffer, !cpu_buffer->head_page))
 		return NULL;
 
 	/* sanity check */
+	/* 如果当前cpu_buffer->pages 当前正在被读，告警，返回空 */
 	list = cpu_buffer->pages;
 	if (RB_WARN_ON(cpu_buffer, rb_list_head(list->prev->next) != list))
 		return NULL;
@@ -861,8 +867,15 @@ rb_set_head_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 * A second loop should grab the header, but we'll do
 	 * three loops just because I'm paranoid.
 	 */
+	/*
+	 * TODO: 这里的循环多次有什么意义？
+	 */
 	for (i = 0; i < 3; i++) {
 		do {
+			/*
+			 * TODO: 这里没理解
+			 * 为什么返回 MOVED,UPDATED 了的依旧会return;
+			 */
 			if (rb_is_head_page(cpu_buffer, page, page->list.prev)) {
 				cpu_buffer->head_page = page;
 				return page;
@@ -886,6 +899,7 @@ static int rb_head_page_replace(struct buffer_page *old,
 	val = *ptr & ~RB_FLAG_MASK;
 	val |= RB_PAGE_HEAD;
 
+	/* 设置指针，但是没有设置 HEAD 标识位 */
 	ret = cmpxchg(ptr, val, (unsigned long)&new->list);
 
 	return ret == val;
@@ -896,6 +910,9 @@ static int rb_head_page_replace(struct buffer_page *old,
  *
  * Returns 1 if moved tail page, 0 if someone else did.
  */
+/*
+ * 向前移动tail page，成功移动返回 1，没成功移动返回 0
+ */
 static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 			       struct buffer_page *tail_page,
 			       struct buffer_page *next_page)
@@ -905,6 +922,9 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 	unsigned long old_write;
 	int ret = 0;
 
+	/*
+	 * TODO: 读到这里了...
+	 */
 	/*
 	 * The tail page now needs to be moved forward.
 	 *

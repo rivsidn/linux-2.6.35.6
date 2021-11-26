@@ -123,6 +123,9 @@ static inline int local_add_negative(long i, local_t *l)
  *
  * Atomically adds @i to @l and returns @i + @l
  */
+/*
+ * 添加并返回计算之后的数值
+ */
 static inline long local_add_return(long i, local_t *l)
 {
 	long __i;
