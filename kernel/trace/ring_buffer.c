@@ -700,9 +700,11 @@ rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 
 	val = (unsigned long)list->next;
 
+	/* 指向的下一跳是head page 但是已经被交换了 */
 	if ((val & ~RB_FLAG_MASK) != (unsigned long)&page->list)
 		return RB_PAGE_MOVED;
 
+	/* head 状态还是update 状态 */
 	return val & RB_FLAG_MASK;
 }
 
@@ -923,9 +925,6 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 	int ret = 0;
 
 	/*
-	 * TODO: 读到这里了...
-	 */
-	/*
 	 * The tail page now needs to be moved forward.
 	 *
 	 * We need to reset the tail page, but without messing
@@ -933,6 +932,10 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 	 * that have moved the tail page and are currently on it.
 	 *
 	 * We add a counter to the write field to denote this.
+	 */
+	/*
+	 * 增加引用计数
+	 * TODO: 这里增加引用计数有什么作用？
 	 */
 	old_write = local_add_return(RB_WRITE_INTCNT, &next_page->write);
 	old_entries = local_add_return(RB_WRITE_INTCNT, &next_page->entries);
@@ -963,6 +966,12 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 		 * cmpxchg to only update if an interrupt did not already
 		 * do it for us. If the cmpxchg fails, we don't care.
 		 */
+		/*
+		 * 该操作如果不被打断的话会执行成功。
+		 * 我们添加(void)是为了告诉编译器我们不在乎该函数的返回值。
+		 * 如果中断没帮我们执行，这里会执行成功；如果中断执行成功，
+		 * 我们不在乎这里会执行失败。
+		 */
 		(void)local_cmpxchg(&next_page->write, old_write, val);
 		(void)local_cmpxchg(&next_page->entries, old_entries, eval);
 
@@ -976,6 +985,7 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 		old_tail = cmpxchg(&cpu_buffer->tail_page,
 				   tail_page, next_page);
 
+		/* 如果成功移动了，返回 1 */
 		if (old_tail == tail_page)
 			ret = 1;
 	}
@@ -983,6 +993,7 @@ static int rb_tail_page_update(struct ring_buffer_per_cpu *cpu_buffer,
 	return ret;
 }
 
+/* 检查页面，如果指针的最后两位不是 0，则返回 1 */
 static int rb_check_bpage(struct ring_buffer_per_cpu *cpu_buffer,
 			  struct buffer_page *bpage)
 {
@@ -1000,6 +1011,10 @@ static int rb_check_bpage(struct ring_buffer_per_cpu *cpu_buffer,
 static int rb_check_list(struct ring_buffer_per_cpu *cpu_buffer,
 			 struct list_head *list)
 {
+	/*
+	 * rb_list_head() 清空指针中的后两位，如果此时指针中的后两位不为 0，
+	 * 则此时不应该相等。
+	 */
 	if (RB_WARN_ON(cpu_buffer, rb_list_head(list->prev) != list->prev))
 		return 1;
 	if (RB_WARN_ON(cpu_buffer, rb_list_head(list->next) != list->next))
@@ -1014,11 +1029,15 @@ static int rb_check_list(struct ring_buffer_per_cpu *cpu_buffer,
  * As a safety measure we check to make sure the data pages have not
  * been corrupted.
  */
+/*
+ * 安全性检查，确认数据页没有被污染。
+ */
 static int rb_check_pages(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct list_head *head = cpu_buffer->pages;
 	struct buffer_page *bpage, *tmp;
 
+	/* 清空next 指针中的后两位 */
 	rb_head_page_deactivate(cpu_buffer);
 
 	if (RB_WARN_ON(cpu_buffer, head->next->prev != head))
@@ -1040,6 +1059,7 @@ static int rb_check_pages(struct ring_buffer_per_cpu *cpu_buffer)
 			return -1;
 	}
 
+	/* 设置head 标识 */
 	rb_head_page_activate(cpu_buffer);
 
 	return 0;
@@ -1170,10 +1190,12 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 			list_del_init(&bpage->list);
 			free_buffer_page(bpage);
 		}
+		/* list_for_each_entry_safe() 操作不会遍历头部 */
 		bpage = list_entry(head, struct buffer_page, list);
 		free_buffer_page(bpage);
 	}
 
+	/* 释放掉头部内存 */
 	kfree(cpu_buffer);
 }
 
@@ -1278,6 +1300,11 @@ EXPORT_SYMBOL_GPL(__ring_buffer_alloc);
  * ring_buffer_free - free a ring buffer.
  * @buffer: the buffer to free.
  */
+/*
+ * 释放缓冲区。
+ * 申请缓冲区的时候总会掺着好多初始化操作，释放缓冲区的时候看申请
+ * 了哪些内存倒是清楚干净。
+ */
 void
 ring_buffer_free(struct ring_buffer *buffer)
 {
@@ -1301,6 +1328,7 @@ ring_buffer_free(struct ring_buffer *buffer)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_free);
 
+/* 设置缓冲区时钟 */
 void ring_buffer_set_clock(struct ring_buffer *buffer,
 			   u64 (*clock)(void))
 {
@@ -1309,6 +1337,7 @@ void ring_buffer_set_clock(struct ring_buffer *buffer,
 
 static void rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer);
 
+/* 移除页面 */
 static void
 rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 {
@@ -1316,8 +1345,8 @@ rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 	struct list_head *p;
 	unsigned i;
 
-	spin_lock_irq(&cpu_buffer->reader_lock);
-	rb_head_page_deactivate(cpu_buffer);
+	spin_lock_irq(&cpu_buffer->reader_lock);	/* 添加锁 */
+	rb_head_page_deactivate(cpu_buffer);		/* 去使能 */
 
 	for (i = 0; i < nr_pages; i++) {
 		if (RB_WARN_ON(cpu_buffer, list_empty(cpu_buffer->pages)))
@@ -1330,13 +1359,15 @@ rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 	if (RB_WARN_ON(cpu_buffer, list_empty(cpu_buffer->pages)))
 		goto out;
 
-	rb_reset_cpu(cpu_buffer);
+	rb_reset_cpu(cpu_buffer);			/* 重新使能*/
 	rb_check_pages(cpu_buffer);
 
 out:
+	/* 解锁 */
 	spin_unlock_irq(&cpu_buffer->reader_lock);
 }
 
+/* 插入页面 */
 static void
 rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer,
 		struct list_head *pages, unsigned nr_pages)
@@ -1348,6 +1379,9 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer,
 	spin_lock_irq(&cpu_buffer->reader_lock);
 	rb_head_page_deactivate(cpu_buffer);
 
+	/*
+	 * 从pages 中取出nr_pages 个页面，插入到cpu_buffer->pages 中
+	 */
 	for (i = 0; i < nr_pages; i++) {
 		if (RB_WARN_ON(cpu_buffer, list_empty(pages)))
 			goto out;
@@ -1372,6 +1406,9 @@ out:
  *
  * Returns -1 on failure.
  */
+/*
+ * 改变ring buffer 大小
+ */
 int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
@@ -1393,15 +1430,18 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	buffer_size = buffer->pages * BUF_PAGE_SIZE;
 
 	/* we need a minimum of two pages */
+	/* 最小是两个页面 */
 	if (size < BUF_PAGE_SIZE * 2)
 		size = BUF_PAGE_SIZE * 2;
 
+	/* 如果相等直接返回，不需要重新设置 */
 	if (size == buffer_size)
 		return size;
 
 	atomic_inc(&buffer->record_disabled);
 
 	/* Make sure all writers are done with this buffer. */
+	/* TODO: 这个操作是如何确保所有的写操作执行结束的？ */
 	synchronize_sched();
 
 	mutex_lock(&buffer->mutex);
@@ -1417,6 +1457,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 
 		rm_pages = buffer->pages - nr_pages;
 
+		/* 删除页面，然后退出 */
 		for_each_buffer_cpu(buffer, cpu) {
 			cpu_buffer = buffer->buffers[cpu];
 			rb_remove_pages(cpu_buffer, rm_pages);
@@ -1453,6 +1494,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 		}
 	}
 
+	/* 插入到缓冲区中 */
 	for_each_buffer_cpu(buffer, cpu) {
 		cpu_buffer = buffer->buffers[cpu];
 		rb_insert_pages(cpu_buffer, &pages, new_pages);
@@ -1495,6 +1537,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_resize);
 static inline void *
 __rb_data_page_index(struct buffer_data_page *bpage, unsigned index)
 {
+	/* 数据偏移量 */
 	return bpage->data + index;
 }
 
@@ -1534,6 +1577,7 @@ static inline unsigned long rb_page_entries(struct buffer_page *bpage)
 /* Size is determined by what has been commited */
 static inline unsigned rb_page_size(struct buffer_page *bpage)
 {
+	/* 大小是由已经commit 的大小决定的 */
 	return rb_page_commit(bpage);
 }
 
@@ -1548,6 +1592,7 @@ rb_event_index(struct ring_buffer_event *event)
 {
 	unsigned long addr = (unsigned long)event;
 
+	/* buffer page 中的偏移量 */
 	return (addr & ~PAGE_MASK) - BUF_PAGE_HDR_SIZE;
 }
 
@@ -1561,6 +1606,7 @@ rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 	index = rb_event_index(event);
 	addr &= PAGE_MASK;
 
+	/* 如果在同一个页面并且偏移量相同，则返回 true，否则返回 false */
 	return cpu_buffer->commit_page->page == (void *)addr &&
 		rb_commit_index(cpu_buffer) == index;
 }
@@ -1579,6 +1625,7 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 	 * assign the commit to the tail.
 	 */
  again:
+	/* 设置最大限制，如果超过限制说明异常 */
 	max_count = cpu_buffer->buffer->pages * 100;
 
 	while (cpu_buffer->commit_page != cpu_buffer->tail_page) {
@@ -1589,7 +1636,7 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 			return;
 		local_set(&cpu_buffer->commit_page->page->commit,
 			  rb_page_write(cpu_buffer->commit_page));
-		rb_inc_page(cpu_buffer, &cpu_buffer->commit_page);
+		rb_inc_page(cpu_buffer, &cpu_buffer->commit_page);	//next buffer_page{}
 		cpu_buffer->write_stamp =
 			cpu_buffer->commit_page->page->time_stamp;
 		/* add barrier to keep gcc from optimizing too much */
@@ -1600,6 +1647,7 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 
 		local_set(&cpu_buffer->commit_page->page->commit,
 			  rb_page_write(cpu_buffer->commit_page));
+		/* TODO: 此处 ~RB_WRITE_MASK 的作用？ */
 		RB_WARN_ON(cpu_buffer,
 			   local_read(&cpu_buffer->commit_page->page->commit) &
 			   ~RB_WRITE_MASK);
@@ -1618,6 +1666,7 @@ rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 		goto again;
 }
 
+/* 重设读页面 */
 static void rb_reset_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	cpu_buffer->read_stamp = cpu_buffer->reader_page->page->time_stamp;
@@ -1634,10 +1683,12 @@ static void rb_inc_iter(struct ring_buffer_iter *iter)
 	 * found. Check for this case and assign the iterator
 	 * to the head page instead of next.
 	 */
-	if (iter->head_page == cpu_buffer->reader_page)
+	if (iter->head_page == cpu_buffer->reader_page) {
 		iter->head_page = rb_set_head_page(cpu_buffer);
-	else
+	} else {
+		/* TODO: 这一段没理解？这个迭代器是做什么的？可以这样直接next 么？ */
 		rb_inc_page(cpu_buffer, &iter->head_page);
+	}
 
 	iter->read_stamp = iter->head_page->page->time_stamp;
 	iter->head = 0;
@@ -1669,6 +1720,10 @@ rb_update_event(struct ring_buffer_event *event,
 
 	case 0:
 		length -= RB_EVNT_HDR_SIZE;
+		/*
+		 * 通过type_len 表示的最大长度为: 28<<2
+		 * type_len 最大值乘 4
+		 */
 		if (length > RB_MAX_SMALL_DATA || RB_FORCE_8BYTE_ALIGNMENT)
 			event->array[0] = length;
 		else
@@ -1688,6 +1743,7 @@ rb_update_event(struct ring_buffer_event *event,
  */
 /*
  * 读端碰到了head 页
+ * TODO: 这部分是核心，需要多读两遍
  */
 static int
 rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
@@ -1740,6 +1796,9 @@ rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 		 * We changed the head to UPDATE, thus
 		 * it is our responsibility to update
 		 * the counters.
+		 */
+		/*
+		 * entries 大小的内容被覆盖了
 		 */
 		local_add(entries, &cpu_buffer->overrun);
 
@@ -1853,6 +1912,7 @@ rb_handle_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 	return 0;
 }
 
+/* 通过数据长度计算出整个 event 的长度 */
 static unsigned rb_calculate_event_length(unsigned length)
 {
 	struct ring_buffer_event event; /* Used only for sizeof array */
@@ -1870,6 +1930,10 @@ static unsigned rb_calculate_event_length(unsigned length)
 	return length;
 }
 
+/*
+ * tail		event 开始写入的位置
+ * length	event 写入的长度
+ */
 static inline void
 rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	      struct buffer_page *tail_page,
@@ -1926,12 +1990,14 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 		return;
 	}
 
+	/* TODO:结合下文理解这段代码 */
 	/* Put in a discarded event */
 	event->array[0] = (BUF_PAGE_SIZE - tail) - RB_EVNT_HDR_SIZE;
 	event->type_len = RINGBUF_TYPE_PADDING;
 	/* time delta must be non zero */
 	event->time_delta = 1;
 
+	/* TODO: 这段代码没看懂？ */
 	/* Set write to end of buffer */
 	length = (tail + length) - BUF_PAGE_SIZE;
 	local_sub(length, &tail_page->write);
@@ -1949,6 +2015,7 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 
 	next_page = tail_page;
 
+	/* 获取下一个 buffer_page{} */
 	rb_inc_page(cpu_buffer, &next_page);
 
 	/*
@@ -1976,7 +2043,6 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	 * reader page.
 	 */
 	if (rb_is_head_page(cpu_buffer, next_page, &tail_page->list)) {
-
 		/*
 		 * If the commit is not on the reader page, then
 		 * move the header page.
@@ -2007,10 +2073,9 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 			 * Note, if the tail page is also the on the
 			 * reader_page, we let it move out.
 			 */
-			if (unlikely((cpu_buffer->commit_page !=
-				      cpu_buffer->tail_page) &&
-				     (cpu_buffer->commit_page ==
-				      cpu_buffer->reader_page))) {
+			if (unlikely((cpu_buffer->commit_page != cpu_buffer->tail_page) &&
+				     (cpu_buffer->commit_page == cpu_buffer->reader_page))) {
+				/* TODO: 这里怎么理解？ */
 				local_inc(&cpu_buffer->commit_overrun);
 				goto out_reset;
 			}
@@ -2029,12 +2094,14 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 
  out_again:
 
+	/* reset 并重新写入 */
 	rb_reset_tail(cpu_buffer, tail_page, tail, length);
 
 	/* fail and let the caller try again */
 	return ERR_PTR(-EAGAIN);
 
  out_reset:
+	/* reset 并放弃写入 */
 	/* reset write */
 	rb_reset_tail(cpu_buffer, tail_page, tail, length);
 
@@ -2056,6 +2123,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	write &= RB_WRITE_MASK;
 	tail = write - length;
 
+	/* write 的偏移量是否页面起始位置开始，而不是从实际数据位置开始 */
 	/* See if we shot pass the end of this buffer page */
 	if (write > BUF_PAGE_SIZE)
 		return rb_move_tail(cpu_buffer, length, tail,
@@ -2075,9 +2143,13 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	 * If this is the first commit on the page, then update
 	 * its timestamp.
 	 */
+	/*
+	 * 页面的第一次提交需要更新时间戳
+	 */
 	if (!tail)
 		tail_page->page->time_stamp = *ts;
 
+	/* 返回一个 event */
 	return event;
 }
 
@@ -2090,10 +2162,10 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 	unsigned long index;
 	unsigned long addr;
 
-	new_index = rb_event_index(event);
-	old_index = new_index + rb_event_length(event);
+	new_index = rb_event_index(event);		//页面中偏移量
+	old_index = new_index + rb_event_length(event);	//下一个event 的页面中偏移量
 	addr = (unsigned long)event;
-	addr &= PAGE_MASK;
+	addr &= PAGE_MASK;				//页面index
 
 	bpage = cpu_buffer->tail_page;
 
@@ -2105,6 +2177,9 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 		 * a write could come in and move the tail page
 		 * and write to the next page. That is fine
 		 * because we just shorten what is on this page.
+		 */
+		/*
+		 * TODO: 加 write_mask 这一段没看懂，为什么？
 		 */
 		old_index += write_mask;
 		new_index += write_mask;
@@ -2190,8 +2265,8 @@ static void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	unsigned long commits;
 
-	if (RB_WARN_ON(cpu_buffer,
-		       !local_read(&cpu_buffer->committing)))
+	/* 如果当前 committing 为 0，告警 */
+	if (RB_WARN_ON(cpu_buffer, !local_read(&cpu_buffer->committing)))
 		return;
 
  again:
@@ -2211,6 +2286,9 @@ static void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
 	 * updating of the commit page and the clearing of the
 	 * committing counter.
 	 */
+	/*
+	 * 执行上述操作的过程中如果有中断打断，需要重新再来一次
+	 */
 	if (unlikely(local_read(&cpu_buffer->commits) != commits) &&
 	    !local_read(&cpu_buffer->committing)) {
 		local_inc(&cpu_buffer->committing);
@@ -2218,6 +2296,7 @@ static void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
 	}
 }
 
+/* TODO: 读到这里了... */
 static struct ring_buffer_event *
 rb_reserve_next_event(struct ring_buffer *buffer,
 		      struct ring_buffer_per_cpu *cpu_buffer,
