@@ -431,6 +431,7 @@ static void free_buffer_page(struct buffer_page *bpage)
  */
 static inline int test_time_stamp(u64 delta)
 {
+	/* 不为 0 说明delta 不在TS_MASK 之内，也就是大小超过了限制 */
 	if (delta & TS_DELTA_TEST)
 		return 1;
 	return 0;
@@ -552,6 +553,7 @@ struct ring_buffer_iter {
 /* Up this if you want to test the TIME_EXTENTS and normalization */
 #define DEBUG_SHIFT 0
 
+/* 获取时间戳 */
 static inline u64 rb_time_stamp(struct ring_buffer *buffer)
 {
 	/* shift to debug/test normalization and TIME_EXTENTS */
@@ -2220,6 +2222,7 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		return -EAGAIN;
 
 	/* Only a commited time event can update the write stamp */
+	/* TODO: 这里了rb_event_is_commit() 函数怎么理解？ */
 	if (rb_event_is_commit(cpu_buffer, event)) {
 		/*
 		 * If this is the first on the page, then it was
@@ -2233,6 +2236,7 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 			/* try to discard, since we do not need this */
 			if (!rb_try_to_discard(cpu_buffer, event)) {
 				/* nope, just zero it */
+				/* 没用，请空 */
 				event->time_delta = 0;
 				event->array[0] = 0;
 			}
@@ -2296,7 +2300,6 @@ static void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer)
 	}
 }
 
-/* TODO: 读到这里了... */
 static struct ring_buffer_event *
 rb_reserve_next_event(struct ring_buffer *buffer,
 		      struct ring_buffer_per_cpu *cpu_buffer,
@@ -2324,6 +2327,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	}
 #endif
 
+	/* 获取整个event 的长度 */
 	length = rb_calculate_event_length(length);
  again:
 	/*
@@ -2334,6 +2338,11 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	 * 1000 times in a row, there must be either an interrupt
 	 * storm or we have something buggy.
 	 * Bail!
+	 */
+	/*
+	 * 我们允许中断进入到这里，当这种情况发生的时候，代码会在这里
+	 * 循环，在这里通过 nr_loops 限制循环发生的次数。
+	 * 预防中断风暴或者异常。
 	 */
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
 		goto out_fail;
@@ -2348,9 +2357,11 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	 * also be made. But only the entry that did the actual
 	 * commit will be something other than zero.
 	 */
+	/*
+	 * 页面相同并且页面中偏移量相等
+	 */
 	if (likely(cpu_buffer->tail_page == cpu_buffer->commit_page &&
-		   rb_page_write(cpu_buffer->tail_page) ==
-		   rb_commit_index(cpu_buffer))) {
+		   rb_page_write(cpu_buffer->tail_page) == rb_commit_index(cpu_buffer))) {
 		u64 diff;
 
 		diff = ts - cpu_buffer->write_stamp;
@@ -2364,7 +2375,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 		delta = diff;
 		if (unlikely(test_time_stamp(delta))) {
-
+			/* 如果delta 大小超过了限制 */
 			commit = rb_add_time_stamp(cpu_buffer, &ts, &delta);
 			if (commit == -EBUSY)
 				goto out_fail;
@@ -2384,6 +2395,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	if (!event)
 		goto out_fail;
 
+	/* TODO: 没理解这个函数的用处 */
 	if (!rb_event_is_commit(cpu_buffer, event))
 		delta = 0;
 
@@ -2399,7 +2411,7 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 #ifdef CONFIG_TRACING
 
 #define TRACE_RECURSIVE_DEPTH 16
-
+/* 加锁 */
 static int trace_recursive_lock(void)
 {
 	current->trace_recursion++;
@@ -2420,7 +2432,7 @@ static int trace_recursive_lock(void)
 	WARN_ON_ONCE(1);
 	return -1;
 }
-
+/* 解锁 */
 static void trace_recursive_unlock(void)
 {
 	WARN_ON_ONCE(!current->trace_recursion);
