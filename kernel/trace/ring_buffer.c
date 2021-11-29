@@ -1613,6 +1613,7 @@ rb_event_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 		rb_commit_index(cpu_buffer) == index;
 }
 
+/* TODO: 这个函数没读明白？ */
 static void
 rb_set_commit_to_write(struct ring_buffer_per_cpu *cpu_buffer)
 {
@@ -2471,12 +2472,14 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	struct ring_buffer_event *event;
 	int cpu, resched;
 
+	/* 如果没开启，直接返回 */
 	if (ring_buffer_flags != RB_BUFFERS_ON)
 		return NULL;
 
 	/* If we are tracing schedule, we don't want to recurse */
 	resched = ftrace_preempt_disable();
 
+	/* ring_buffer 日志记录是否关闭 */
 	if (atomic_read(&buffer->record_disabled))
 		goto out_nocheck;
 
@@ -2490,9 +2493,11 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 
 	cpu_buffer = buffer->buffers[cpu];
 
+	/* ring_buffer_per_cpu 日志记录是否关闭 */
 	if (atomic_read(&cpu_buffer->record_disabled))
 		goto out;
 
+	/* 数据的最大长度=页面大小-buffer_page头部大小-event头部大小 */
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
@@ -2505,6 +2510,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	 * Only the first needs to.
 	 */
 
+	/* TODO: 这里怎么理解？ */
 	if (preempt_count() == 1)
 		per_cpu(rb_need_resched, cpu) = resched;
 
@@ -2526,6 +2532,9 @@ rb_update_write_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 	/*
 	 * The event first in the commit queue updates the
 	 * time stamp.
+	 */
+	/*
+	 * 提交队列中的第一个事件更新时间戳
 	 */
 	if (rb_event_is_commit(cpu_buffer, event))
 		cpu_buffer->write_stamp += event->time_delta;
@@ -2563,6 +2572,9 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 	/*
 	 * Only the last preempt count needs to restore preemption.
 	 */
+	/*
+	 * TODO: 这里的逻辑，需要梳理一下
+	 */
 	if (preempt_count() == 1)
 		ftrace_preempt_enable(per_cpu(rb_need_resched, cpu));
 	else
@@ -2596,7 +2608,7 @@ rb_decrement_entry(struct ring_buffer_per_cpu *cpu_buffer,
 	struct buffer_page *bpage = cpu_buffer->commit_page;
 	struct buffer_page *start;
 
-	addr &= PAGE_MASK;
+	addr &= PAGE_MASK;	//页面下标
 
 	/* Do the likely case first */
 	if (likely(bpage->page == (void *)addr)) {
@@ -2604,6 +2616,9 @@ rb_decrement_entry(struct ring_buffer_per_cpu *cpu_buffer,
 		return;
 	}
 
+	/*
+	 * TODO: 没看懂下边这段话，从commit_page 开始有什么坏处么？
+	 */
 	/*
 	 * Because the commit page may be on the reader page we
 	 * start with the next page and check the end loop there.
@@ -2641,6 +2656,11 @@ rb_decrement_entry(struct ring_buffer_per_cpu *cpu_buffer,
  * If this function is called, do not call ring_buffer_unlock_commit on
  * the event.
  */
+/*
+ * 丢弃一个event，这样读的时候就读不到了。
+ * 1. 如果在它之后没有event添加，则释放内存
+ * 2. 如果之后有别的evtnt添加，则将其设置为discard状态
+ */
 void ring_buffer_discard_commit(struct ring_buffer *buffer,
 				struct ring_buffer_event *event)
 {
@@ -2667,6 +2687,9 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	/*
 	 * The commit is still visible by the reader, so we
 	 * must still update the timestamp.
+	 */
+	/*
+	 * TODO: 时间戳究竟是做什么用的？
 	 */
 	rb_update_write_stamp(cpu_buffer, event);
  out:
@@ -2697,6 +2720,11 @@ EXPORT_SYMBOL_GPL(ring_buffer_discard_commit);
  *
  * Note, like ring_buffer_lock_reserve, the length is the length of the data
  * and not the length of the event which would hold the header.
+ */
+/*
+ * TODO: ring_buffer_unlock_commit() 究竟做了什么操作，没读明白？
+ * 
+ * 此处的长度也同样没有包含event 头
  */
 int ring_buffer_write(struct ring_buffer *buffer,
 			unsigned long length,
@@ -2729,14 +2757,16 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
+	/* 获取event */
 	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
 		goto out;
-
+	/* 获取event数据存储地址 */
 	body = rb_event_data(event);
-
+	/* 数据拷贝 */
 	memcpy(body, data, length);
 
+	/* TODO: 提交操作没仔细看 */
 	rb_commit(cpu_buffer, event);
 
 	ret = 0;
@@ -2747,6 +2777,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(ring_buffer_write);
 
+/* 检测是否为空 */
 static int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct buffer_page *reader = cpu_buffer->reader_page;
@@ -2757,6 +2788,7 @@ static int rb_per_cpu_empty(struct ring_buffer_per_cpu *cpu_buffer)
 	if (unlikely(!head))
 		return 1;
 
+	/* TODO: 暂时没理解 */
 	return reader->read == rb_page_commit(reader) &&
 		(commit == reader ||
 		 (commit == head &&
@@ -2847,6 +2879,7 @@ unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu)
 		return 0;
 
 	cpu_buffer = buffer->buffers[cpu];
+	/* TODO: 我记得overrun 是数据字节大小，entries 是event 个数，需要梳理 */
 	ret = (local_read(&cpu_buffer->entries) - local_read(&cpu_buffer->overrun))
 		- cpu_buffer->read;
 
@@ -2942,6 +2975,7 @@ unsigned long ring_buffer_overruns(struct ring_buffer *buffer)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_overruns);
 
+/* TODO: 读到这里了... */
 static void rb_iter_reset(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
@@ -3988,6 +4022,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_free_read_page);
  *  >=0 if data has been transferred, returns the offset of consumed data.
  *  <0 if no data has been transferred.
  */
+/* TODO: 这个函数没读 */
 int ring_buffer_read_page(struct ring_buffer *buffer,
 			  void **data_page, size_t len, int cpu, int full)
 {
@@ -4185,6 +4220,7 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 	else
 		clear_bit(RB_BUFFERS_ON_BIT, p);
 
+	/* TODO: 这操作是什么意思？ */
 	(*ppos)++;
 
 	return cnt;
