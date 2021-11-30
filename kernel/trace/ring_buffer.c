@@ -2975,7 +2975,7 @@ unsigned long ring_buffer_overruns(struct ring_buffer *buffer)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_overruns);
 
-/* TODO: 读到这里了... */
+/* 通过cpu_buffer 重设置iter */
 static void rb_iter_reset(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
@@ -3005,6 +3005,9 @@ static void rb_iter_reset(struct ring_buffer_iter *iter)
  * Resets the iterator, so that it will start from the beginning
  * again.
  */
+/*
+ * 重新设置迭代器，所以会重新开始
+ */
 void ring_buffer_iter_reset(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
@@ -3025,6 +3028,9 @@ EXPORT_SYMBOL_GPL(ring_buffer_iter_reset);
  * ring_buffer_iter_empty - check if an iterator has no more to read
  * @iter: The iterator to check
  */
+/*
+ * 确认迭代器已经没有其他可读数据
+ */
 int ring_buffer_iter_empty(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
@@ -3036,6 +3042,7 @@ int ring_buffer_iter_empty(struct ring_buffer_iter *iter)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_iter_empty);
 
+/* 通过event 更新read stamp */
 static void
 rb_update_read_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		     struct ring_buffer_event *event)
@@ -3067,6 +3074,7 @@ rb_update_read_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 	return;
 }
 
+/* 逻辑同上，更新iter 时间戳 */
 static void
 rb_update_iter_read_stamp(struct ring_buffer_iter *iter,
 			  struct ring_buffer_event *event)
@@ -3107,8 +3115,8 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	int nr_loops = 0;
 	int ret;
 
-	local_irq_save(flags);
-	arch_spin_lock(&cpu_buffer->lock);
+	local_irq_save(flags);			//关中断
+	arch_spin_lock(&cpu_buffer->lock);	//自旋锁
 
  again:
 	/*
@@ -3116,6 +3124,9 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 * start of the reader inserts an empty page, it causes
 	 * a case where we will loop three times. There should be no
 	 * reason to loop four times (that I know of).
+	 */
+	/*
+	 * 限制循环次数，超过则异常
 	 */
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 3)) {
 		reader = NULL;
@@ -3141,6 +3152,9 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	/*
 	 * Reset the reader page to size zero.
 	 */
+	/*
+	 * 重置reader page 为 0
+	 */
 	local_set(&cpu_buffer->reader_page->write, 0);
 	local_set(&cpu_buffer->reader_page->entries, 0);
 	local_set(&cpu_buffer->reader_page->page->commit, 0);
@@ -3161,6 +3175,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 */
 	cpu_buffer->pages = reader->list.prev;
 
+	/* 设置头部标识位 */
 	/* The reader page will be pointing to the new head */
 	rb_set_list_to_head(cpu_buffer, &cpu_buffer->reader_page->list);
 
@@ -3187,6 +3202,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 * than it will be '2' or already moved '0'.
 	 */
 
+	/* TODO: 没看很明白 */
 	ret = rb_head_page_replace(reader, cpu_buffer->reader_page);
 
 	/*
@@ -3233,13 +3249,16 @@ static void rb_advance_reader(struct ring_buffer_per_cpu *cpu_buffer)
 	if (RB_WARN_ON(cpu_buffer, !reader))
 		return;
 
+	/* 获取下一个event */
 	event = rb_reader_event(cpu_buffer);
 
+	/* 更新次数 */
 	if (event->type_len <= RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 		cpu_buffer->read++;
 
 	rb_update_read_stamp(cpu_buffer, event);
 
+	/* 更新数据长度 */
 	length = rb_event_length(event);
 	cpu_buffer->reader_page->read += length;
 }
@@ -3594,6 +3613,9 @@ EXPORT_SYMBOL_GPL(ring_buffer_consume);
  *
  * This overall must be paired with ring_buffer_finish.
  */
+/*
+ * 读，非消费类型
+ */
 struct ring_buffer_iter *
 ring_buffer_read_prepare(struct ring_buffer *buffer, int cpu)
 {
@@ -3611,6 +3633,7 @@ ring_buffer_read_prepare(struct ring_buffer *buffer, int cpu)
 
 	iter->cpu_buffer = cpu_buffer;
 
+	/* 关闭该cpu buffer 写入 */
 	atomic_inc(&cpu_buffer->record_disabled);
 
 	return iter;
@@ -3673,6 +3696,7 @@ ring_buffer_read_finish(struct ring_buffer_iter *iter)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = iter->cpu_buffer;
 
+	/* 开启写，释放迭代器内存 */
 	atomic_dec(&cpu_buffer->record_disabled);
 	kfree(iter);
 }
@@ -4022,7 +4046,12 @@ EXPORT_SYMBOL_GPL(ring_buffer_free_read_page);
  *  >=0 if data has been transferred, returns the offset of consumed data.
  *  <0 if no data has been transferred.
  */
-/* TODO: 这个函数没读 */
+/*
+ * 从ring_buffer 中提取一个页面内容，并消耗掉
+ */
+/*
+ * TODO: 这个函数没读
+ */
 int ring_buffer_read_page(struct ring_buffer *buffer,
 			  void **data_page, size_t len, int cpu, int full)
 {
