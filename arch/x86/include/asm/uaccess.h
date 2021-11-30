@@ -144,6 +144,9 @@ extern int __get_user_bad(void);
  * Returns zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
  */
+/*
+ * 成功返回 0； 失败返回 (-EFAULT)
+ */
 #ifdef CONFIG_X86_32
 #define __get_user_8(__ret_gu, __val_gu, ptr)				\
 		__get_user_x(X, __ret_gu, __val_gu, ptr)

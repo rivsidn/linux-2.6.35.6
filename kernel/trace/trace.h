@@ -610,9 +610,9 @@ static inline int ftrace_trace_task(struct task_struct *task)
  */
 struct trace_parser {
 	bool		cont;
-	char		*buffer;
-	unsigned	idx;
-	unsigned	size;
+	char		*buffer;	//保存用户输入数据的内存地址
+	unsigned	idx;		//用户输入长度
+	unsigned	size;		//buffer 大小
 };
 
 static inline bool trace_parser_loaded(struct trace_parser *parser)

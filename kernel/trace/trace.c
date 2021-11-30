@@ -194,10 +194,6 @@ static struct trace_array	global_trace;
 
 static DEFINE_PER_CPU(struct trace_array_cpu, global_trace_cpu);
 
-/* TODO: 这个函数的作用？ */
-/*
- * TODO: 读到这里了...
- */
 int filter_current_check_discard(struct ring_buffer *buffer,
 				 struct ftrace_event_call *call, void *rec,
 				 struct ring_buffer_event *event)
@@ -299,6 +295,9 @@ static DEFINE_MUTEX(trace_types_lock);
  * These primitives don't distinguish read-only and read-consume access.
  * Multi read-only access are also serialized.
  */
+/*
+ * 串行化访问缓冲区
+ */
 
 #ifdef CONFIG_SMP
 static DECLARE_RWSEM(all_cpu_access_lock);
@@ -345,7 +344,7 @@ static DEFINE_MUTEX(access_lock);
 
 static inline void trace_access_lock(int cpu)
 {
-	(void)cpu;
+	(void)cpu;	//没用该变量
 	mutex_lock(&access_lock);
 }
 
@@ -394,6 +393,7 @@ void trace_wake_up(void)
 	put_cpu();
 }
 
+/* 设置缓冲区大小，内核启动参数 */
 static int __init set_buf_size(char *str)
 {
 	unsigned long buf_size;
@@ -409,6 +409,7 @@ static int __init set_buf_size(char *str)
 }
 __setup("trace_buf_size=", set_buf_size);
 
+/* 内核启动参数 */
 static int __init set_tracing_thresh(char *str)
 {
 	unsigned long threshhold;
@@ -424,11 +425,13 @@ static int __init set_tracing_thresh(char *str)
 }
 __setup("tracing_thresh=", set_tracing_thresh);
 
+/* 纳秒转微秒 */
 unsigned long nsecs_to_usecs(unsigned long nsecs)
 {
 	return nsecs / 1000;
 }
 
+/* 必须跟 trace_iterator_flags 中的位置保持一致 */
 /* These must match the bit postions in trace_iterator_flags */
 static const char *trace_options[] = {
 	"print-parent",
@@ -454,7 +457,7 @@ static const char *trace_options[] = {
 	NULL
 };
 
-/* 内核实现了3 种锁，对外只呈现了2 种 */
+/* 内核实现了3 种时钟，对外只呈现了2 种 */
 static struct {
 	u64 (*func)(void);
 	const char *name;
@@ -472,6 +475,7 @@ int trace_parser_get_init(struct trace_parser *parser, int size)
 {
 	memset(parser, 0, sizeof(*parser));
 
+	/* 申请内存，设置大小 */
 	parser->buffer = kmalloc(size, GFP_KERNEL);
 	if (!parser->buffer)
 		return 1;
@@ -485,6 +489,7 @@ int trace_parser_get_init(struct trace_parser *parser, int size)
  */
 void trace_parser_put(struct trace_parser *parser)
 {
+	/* 内存释放 */
 	kfree(parser->buffer);
 }
 
@@ -531,6 +536,7 @@ int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		}
 
 		/* only spaces were written */
+		/* 只写入了空格，退出 */
 		if (isspace(ch)) {
 			*ppos += read;
 			ret = read;
@@ -571,6 +577,7 @@ out:
 	return ret;
 }
 
+/* trace_seq{} 中内容写到用户态 */
 ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 {
 	int len;
@@ -585,10 +592,12 @@ ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf, size_t cnt)
 	len = s->len - s->readpos;
 	if (cnt > len)
 		cnt = len;
+	/* 返回没被写入的字节数，如果一个字节也没被写入，报错 */
 	ret = copy_to_user(ubuf, s->buffer + s->readpos, cnt);
 	if (ret == cnt)
 		return -EFAULT;
 
+	/* 实际写入的字节 */
 	cnt -= ret;
 
 	s->readpos += cnt;
@@ -939,6 +948,7 @@ void tracing_reset_current_online_cpus(void)
 	tracing_reset_online_cpus(&global_trace);
 }
 
+/* TODO: 读到这里了... */
 #define SAVED_CMDLINES 128
 #define NO_CMDLINE_MAP UINT_MAX
 static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];

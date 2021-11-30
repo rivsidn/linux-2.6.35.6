@@ -378,6 +378,7 @@ static void filter_build_regex(struct filter_pred *pred)
 }
 
 /* return 1 if event matches, 0 otherwise (discard) */
+/* 匹配返回 1，没匹配返回 0 */
 int filter_match_preds(struct event_filter *filter, void *rec)
 {
 	int match, top = 0, val1 = 0, val2 = 0;
