@@ -37,17 +37,21 @@ static int function_trace_init(struct trace_array *tr)
 	return 0;
 }
 
+/* 切换出该tracer 时候调用 */
 static void function_trace_reset(struct trace_array *tr)
 {
 	tracing_stop_function_trace();
 	tracing_stop_cmdline_record();
 }
 
+/* 启动该tracer 时候调用 */
 static void function_trace_start(struct trace_array *tr)
 {
+	/* 重设缓冲区 */
 	tracing_reset_online_cpus(tr);
 }
 
+/* 只在可抢占的时候调用 */
 static void
 function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
 {
@@ -139,6 +143,10 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
 		 *    ftrace_list_func
 		 *    ftrace_call
 		 */
+		/*
+		 * 相对于 function_trace_call 多调用了下边这个函数，
+		 * 用于获取函数调用栈
+		 */
 		__trace_stack(tr, flags, 5, pc);
 	}
 
@@ -201,6 +209,7 @@ static void tracing_stop_function_trace(void)
 		unregister_ftrace_function(&trace_ops);
 }
 
+/* 设置tracer option */
 static int func_set_flag(u32 old_flags, u32 bit, int set)
 {
 	if (bit == TRACE_FUNC_OPT_STACK) {
@@ -334,6 +343,7 @@ ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
 	if (!enable)
 		return -EINVAL;
 
+	/* 注销操作 */
 	if (glob[0] == '!')
 		return ftrace_trace_onoff_unreg(glob+1, cmd, param);
 
@@ -360,6 +370,7 @@ ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
 		return ret;
 
  out_reg:
+	/* 注册操作 */
 	ret = register_ftrace_function_probe(glob, ops, count);
 
 	return ret < 0 ? ret : 0;
@@ -375,6 +386,10 @@ static struct ftrace_func_command ftrace_traceoff_cmd = {
 	.func			= ftrace_trace_onoff_callback,
 };
 
+/*
+ * 添加函数命令，只有定义了 CONFIG_DYNAMIC_FTRACE 才需要添加，因为
+ * 该命令用于设置 set_ftrace_filter ，该文件只有定义了该宏才会创建.
+ */
 static int __init init_func_cmd_traceon(void)
 {
 	int ret;

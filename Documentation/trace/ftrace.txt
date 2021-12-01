@@ -1832,6 +1832,7 @@ Filter commands
 
 A few commands are supported by the set_ftrace_filter interface.
 Trace commands have the following format:
+set_ftrace_filter 支持几种命令，命令格式如下:
 
 <function>:<command>:<parameter>
 
@@ -1849,6 +1850,7 @@ The following commands are supported:
   in a different module is accomplished by appending (>>) to the
   filter file. Remove specific module functions by prepending
   '!':
+  只有追加操作才会追加，删除可以通过'!'。
 
    echo '!writeback*:mod:ext3' >> set_ftrace_filter
 
@@ -1864,6 +1866,7 @@ The following commands are supported:
   These commands are cumulative whether or not they are appended
   to set_ftrace_filter. To remove a command, prepend it by '!'
   and drop the parameter:
+  不论是否是追加操作都会累积，删除需要使用'!'。
 
    echo '!__schedule_bug:traceoff' > set_ftrace_filter
 
