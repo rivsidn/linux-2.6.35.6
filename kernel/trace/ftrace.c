@@ -3104,6 +3104,10 @@ void ftrace_kill(void)
  *       with "notrace", otherwise it will go into a
  *       recursive loop.
  */
+/*
+ * 注册一个内核中所有函数调用的分析函数，被调用的函数必须是"notrace"
+ * 标识的，否则会陷入到死循环中.
+ */
 int register_ftrace_function(struct ftrace_ops *ops)
 {
 	int ret;

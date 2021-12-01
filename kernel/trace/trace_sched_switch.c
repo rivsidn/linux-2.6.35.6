@@ -107,6 +107,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	ftrace_trace_userstack(tr->buffer, flags, pc);
 }
 
+/* 记录信息到缓冲区中 */
 static void
 probe_sched_wakeup(void *ignore, struct task_struct *wakee, int success)
 {
@@ -138,6 +139,10 @@ static int tracing_sched_register(void)
 {
 	int ret;
 
+	/*
+	 * include/trace/events/sched.h 中展开生成的内联函数，
+	 * 注册tracepoint钩子函数
+	 */
 	ret = register_trace_sched_wakeup(probe_sched_wakeup, NULL);
 	if (ret) {
 		pr_info("wakeup trace: Couldn't activate tracepoint"

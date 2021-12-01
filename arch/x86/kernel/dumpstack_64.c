@@ -139,7 +139,10 @@ fixup_bp_irq_link(unsigned long bp, unsigned long *stack,
  * interrupt stack
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
  */
-
+/*
+ * x86-64 最多可以有三个内核栈:
+ * 进程栈、中断栈、严重异常硬件栈
+ */
 void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data)

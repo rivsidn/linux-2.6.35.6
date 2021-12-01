@@ -34,6 +34,9 @@ const char *ftrace_print_hex_seq(struct trace_seq *p,
  *
  *     bash-15816 [01]   235.197585: idle_cpu <- irq_enter
  */
+/*
+ * tracing 的基本单元，用于终端输出
+ */
 struct trace_entry {
 	unsigned short		type;
 	unsigned char		flags;
@@ -71,7 +74,6 @@ struct trace_iterator {
 
 	cpumask_var_t		started;
 };
-
 
 struct trace_event;
 

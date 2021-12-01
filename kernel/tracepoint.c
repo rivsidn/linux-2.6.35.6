@@ -366,6 +366,9 @@ tracepoint_add_probe(const char *name, void *probe, void *data)
  * Returns 0 if ok, error value on error.
  * The probe address must at least be aligned on the architecture pointer size.
  */
+/*
+ * 给对应的tracepoint 添加一个钩子函数
+ */
 int tracepoint_probe_register(const char *name, void *probe, void *data)
 {
 	struct tracepoint_func *old;

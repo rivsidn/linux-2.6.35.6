@@ -948,7 +948,6 @@ void tracing_reset_current_online_cpus(void)
 	tracing_reset_online_cpus(&global_trace);
 }
 
-/* TODO: 读到这里了... */
 #define SAVED_CMDLINES 128
 #define NO_CMDLINE_MAP UINT_MAX
 static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];
@@ -1065,6 +1064,7 @@ void tracing_stop(void)
 
 void trace_stop_cmdline_recording(void);
 
+/* 保存执行的命令 */
 static void trace_save_cmdline(struct task_struct *tsk)
 {
 	unsigned pid, idx;
@@ -1101,11 +1101,13 @@ static void trace_save_cmdline(struct task_struct *tsk)
 		cmdline_idx = idx;
 	}
 
+	/* 保存进程信息 */
 	memcpy(&saved_cmdlines[idx], tsk->comm, TASK_COMM_LEN);
 
 	arch_spin_unlock(&trace_cmdline_lock);
 }
 
+/* 获取save_cmdlines[] 中保存的进程信息 */
 void trace_find_cmdline(int pid, char comm[])
 {
 	unsigned map;
@@ -1146,8 +1148,8 @@ void tracing_record_cmdline(struct task_struct *tsk)
 	trace_save_cmdline(tsk);
 }
 
-void
-tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
+/* 更新trace_entry{} 信息 */
+void tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 			     int pc)
 {
 	struct task_struct *tsk = current;
@@ -1175,10 +1177,13 @@ trace_buffer_lock_reserve(struct ring_buffer *buffer,
 {
 	struct ring_buffer_event *event;
 
+	/* 获取event */
 	event = ring_buffer_lock_reserve(buffer, len);
 	if (event != NULL) {
+		/* 获取event 的数据头 */
 		struct trace_entry *ent = ring_buffer_event_data(event);
 
+		/* 将数据更新到event 中 */
 		tracing_generic_entry_update(ent, flags, pc);
 		ent->type = type;
 	}
@@ -1192,8 +1197,13 @@ __trace_buffer_unlock_commit(struct ring_buffer *buffer,
 			     unsigned long flags, int pc,
 			     int wake)
 {
+	/* event 提交 */
 	ring_buffer_unlock_commit(buffer, event);
 
+	/*
+	 * 从正常的函数调用流程到这里，又多调用了几个函数，获取调用栈
+	 * 的时候需要将这些函数过滤掉，这里的 6 就是起这个作用
+	 */
 	ftrace_trace_stack(buffer, flags, 6, pc);
 	ftrace_trace_userstack(buffer, flags, pc);
 
@@ -1256,6 +1266,7 @@ trace_function(struct trace_array *tr,
 	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
 		return;
 
+	/* 获取内存，写入，检查是否需要丢弃，不需要则提交 */
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
 					  flags, pc);
 	if (!event)
@@ -1299,6 +1310,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 	trace.skip		= skip;
 	trace.entries		= entry->caller;
 
+	/* 保存函数调用栈 */
 	save_stack_trace(&trace);
 	if (!filter_check_discard(call, entry, buffer, event))
 		ring_buffer_unlock_commit(buffer, event);
@@ -1307,6 +1319,7 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 void ftrace_trace_stack(struct ring_buffer *buffer, unsigned long flags,
 			int skip, int pc)
 {
+	/* 检查选项是否开启 */
 	if (!(trace_flags & TRACE_ITER_STACKTRACE))
 		return;
 
@@ -1429,6 +1442,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
+	/* TODO: 为什么这个地方是先加再查看？ */
 	if (likely(atomic_inc_return(&data->disabled) == 1))
 		ftrace_trace_special(tr, arg1, arg2, arg3, pc);
 
@@ -1438,12 +1452,10 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 
 /**
  * trace_vbprintk - write binary msg to tracing buffer
- *
  */
 int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
-	static arch_spinlock_t trace_buf_lock =
-		(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
+	static arch_spinlock_t trace_buf_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 	static u32 trace_buf[TRACE_BUF_SIZE];
 
 	struct ftrace_event_call *call = &event_bprint;
@@ -1594,6 +1606,7 @@ enum trace_file_type {
 	TRACE_FILE_ANNOTATE	= 2,
 };
 
+/* ring buffer 中获取数据 */
 static void trace_iterator_increment(struct trace_iterator *iter)
 {
 	/* Don't allow ftrace to trace into the ring buffers */
@@ -2940,6 +2953,7 @@ static int tracing_set_tracer(const char *buf)
 	if (t == current_trace)
 		goto out;
 
+	/* TODO: 下边这行代码的用处？ */
 	trace_branch_disable();
 	if (current_trace && current_trace->reset)
 		current_trace->reset(tr);

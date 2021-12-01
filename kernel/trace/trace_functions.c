@@ -25,6 +25,7 @@ static struct trace_array	*func_trace;
 static void tracing_start_function_trace(void);
 static void tracing_stop_function_trace(void);
 
+/* 切换到该tracer 的时候调用该函数 */
 static int function_trace_init(struct trace_array *tr)
 {
 	func_trace = tr;
@@ -397,6 +398,7 @@ static inline int init_func_cmd_traceon(void)
 static __init int init_function_trace(void)
 {
 	init_func_cmd_traceon();
+	/* 注册追踪器 */
 	return register_tracer(&function_trace);
 }
 device_initcall(init_function_trace);
