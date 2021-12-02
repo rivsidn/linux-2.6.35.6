@@ -32,6 +32,7 @@ static int function_trace_init(struct trace_array *tr)
 	tr->cpu = get_cpu();
 	put_cpu();
 
+	/* TODO: 这个函数中注册的如何生效？什么效果 */
 	tracing_start_cmdline_record();
 	tracing_start_function_trace();
 	return 0;
@@ -153,7 +154,6 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
 }
-
 
 static struct ftrace_ops trace_ops __read_mostly =
 {

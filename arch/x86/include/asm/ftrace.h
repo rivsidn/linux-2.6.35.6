@@ -42,6 +42,9 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	 * The addr points to the 4 byte offset and the caller of this
 	 * function wants the pointer to e8. Simply subtract one.
 	 */
+	/*
+	 * 地址目前指向 <4 byte offset>，想要指向 e8，所以就只需要减去 1.
+	 */
 	return addr - 1;
 }
 

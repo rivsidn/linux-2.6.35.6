@@ -48,7 +48,7 @@ static DEFINE_PER_CPU(int, save_modifying_code);
 
 int ftrace_arch_code_modify_prepare(void)
 {
-	set_kernel_text_rw();
+	set_kernel_text_rw();		//设置内核代码段可读写
 	modifying_code = 1;
 	return 0;
 }
@@ -56,18 +56,23 @@ int ftrace_arch_code_modify_prepare(void)
 int ftrace_arch_code_modify_post_process(void)
 {
 	modifying_code = 0;
-	set_kernel_text_ro();
+	set_kernel_text_ro();		//设置内核代码段只读
 	return 0;
 }
 
 union ftrace_code_union {
 	char code[MCOUNT_INSN_SIZE];
+	/*
+	 * 如果不加 packed 属性，这里会占用 8 个字节，
+	 * 加了之后只占用 5 个字节
+	 */
 	struct {
 		char e8;
 		int offset;
 	} __attribute__((packed));
 };
 
+/* 计算ip, addr 之间偏移量 */
 static int ftrace_calc_offset(long ip, long addr)
 {
 	return (int)(addr - ip);
@@ -77,12 +82,17 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
 	static union ftrace_code_union calc;
 
+	/* 0xe8 CALL 指令，后边是四字节的地址 */
 	calc.e8		= 0xe8;
+	/* call+偏移地址 属于一条指令，偏移地址是想对于该指令尾的偏移地址，需要加上指令长度 */
 	calc.offset	= ftrace_calc_offset(ip + MCOUNT_INSN_SIZE, addr);
 
 	/*
 	 * No locking needed, this must be called via kstop_machine
 	 * which in essence is like running on a uniprocessor machine.
+	 */
+	/*
+	 * 通过 kstop_machine 调用该函数，就像运行在单核处理器上.
 	 */
 	return calc.code;
 }
@@ -115,16 +125,24 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * it is OK to write to that code location if the contents being written
  * are the same as what exists.
  */
+/*
+ * 修改代码需要认真考虑，在SMP系统中，如果修改的代码正在被别的CPU执行
+ * 可能会导致未定义的结果，可能会导致GPF。我们通过 kstop_machine 让其
+ * 他CPU 停止执行代码，但是该操作并不会阻止NMIs，我们需要阻止这种情况。
+ */
 
 #define MOD_CODE_WRITE_FLAG (1 << 31)	/* set when NMI should do the write */
 static atomic_t nmi_running = ATOMIC_INIT(0);
 static int mod_code_status;		/* holds return value of text write */
+					/* 保存写入代码段的返回值 */
 static void *mod_code_ip;		/* holds the IP to write to */
+					/* 保存要写入的IP 地址 */
 static void *mod_code_newcode;		/* holds the text to write to the IP */
-
+					/* 保存要写入IP 的内容 */
 static unsigned nmi_wait_count;
 static atomic_t nmi_update_count = ATOMIC_INIT(0);
 
+/* 获取信息，用于debugfs 显示 */
 int ftrace_arch_read_dyn_info(char *buf, int size)
 {
 	int r;
@@ -135,6 +153,16 @@ int ftrace_arch_read_dyn_info(char *buf, int size)
 	return r;
 }
 
+/*
+ * 1. nmi 中调用
+ * 2. 进程上下文中调用
+ * 
+ * 无论是上边哪种情况，smp 情况下都可能会有其他CPU在同步运行，
+ * atomic_cmpxchg() 时有三种可能:
+ * 1. nmi_running 此处没动，被其他地方的nmi 设置，退出循环
+ * 2. 该处的设置，推出循环
+ * 3. 不停有新的nmi 进来，nmi_running 不断更新，都不会设置(如何避免这种情况)
+ */
 static void clear_mod_flag(void)
 {
 	int old = atomic_read(&nmi_running);
@@ -142,6 +170,7 @@ static void clear_mod_flag(void)
 	for (;;) {
 		int new = old & ~MOD_CODE_WRITE_FLAG;
 
+		/* 如果没有设置 MOD_CODE_WRITE_FLAG 标识位，跳出 */
 		if (old == new)
 			break;
 
@@ -165,6 +194,7 @@ static void ftrace_mod_code(void)
 		clear_mod_flag();
 }
 
+/* 进入nmi 时候调用 */
 void ftrace_nmi_enter(void)
 {
 	__get_cpu_var(save_modifying_code) = modifying_code;
@@ -181,6 +211,7 @@ void ftrace_nmi_enter(void)
 	smp_mb();
 }
 
+/* 退出nmi 时候调用 */
 void ftrace_nmi_exit(void)
 {
 	if (!__get_cpu_var(save_modifying_code))
@@ -191,15 +222,23 @@ void ftrace_nmi_exit(void)
 	atomic_dec(&nmi_running);
 }
 
+/*
+ * 运行该函数之后，nmi_running 中肯定设置了 MOD_CODE_WRITE_FLAG 标识位，
+ * 后边进入到 ftrace_nmi_enter() 时，如果检测到该标识位，就需要执行函数
+ * 写操作.
+ */
 static void wait_for_nmi_and_set_mod_flag(void)
 {
+	/* 如果当前没有nmi 正在运行，设置MOD_CODE_WRITE_FLAG，返回 */
 	if (!atomic_cmpxchg(&nmi_running, 0, MOD_CODE_WRITE_FLAG))
 		return;
 
+	/* 等待没有nmi 运行了，设置MOD_CODE_WRITE_FLAG 标识位 */
 	do {
 		cpu_relax();
 	} while (atomic_cmpxchg(&nmi_running, 0, MOD_CODE_WRITE_FLAG));
 
+	/* 更新统计信息 */
 	nmi_wait_count++;
 }
 
@@ -208,10 +247,12 @@ static void wait_for_nmi(void)
 	if (!atomic_read(&nmi_running))
 		return;
 
+	/* 等待没有nmi 运行了，再返回 */
 	do {
 		cpu_relax();
 	} while (atomic_read(&nmi_running));
 
+	/* 更新统计信息 */
 	nmi_wait_count++;
 }
 
@@ -357,6 +398,9 @@ int __init ftrace_dyn_arch_init(void *data)
 	 *
 	 * TODO: check the cpuid to determine the best nop.
 	 */
+	/*
+	 * TODO: 理解这里的汇编代码
+	 */
 	asm volatile (
 		"ftrace_test_jmp:"
 		"jmp ftrace_test_p6nop\n"
@@ -379,6 +423,7 @@ int __init ftrace_dyn_arch_init(void *data)
 		_ASM_EXTABLE(ftrace_test_nop5, 3b)
 		: "=r"(faulted) : "0" (faulted));
 
+	/* 通过返回值判断改用那个作为 nop 操作 */
 	switch (faulted) {
 	case 0:
 		pr_info("converting mcount calls to 0f 1f 44 00 00\n");
@@ -453,14 +498,16 @@ int ftrace_disable_ftrace_graph_caller(void)
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
  */
+/*
+ * 挂载钩子函数挂载到返回地址中
+ */
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 			   unsigned long frame_pointer)
 {
 	unsigned long old;
 	int faulted;
 	struct ftrace_graph_ent trace;
-	unsigned long return_hooker = (unsigned long)
-				&return_to_handler;
+	unsigned long return_hooker = (unsigned long)&return_to_handler;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
@@ -495,8 +542,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 	}
 
-	if (ftrace_push_return_trace(old, self_addr, &trace.depth,
-		    frame_pointer) == -EBUSY) {
+	if (ftrace_push_return_trace(old, self_addr, &trace.depth, frame_pointer) == -EBUSY) {
 		*parent = old;
 		return;
 	}

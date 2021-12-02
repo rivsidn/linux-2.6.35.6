@@ -1074,7 +1074,6 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	return ftrace_make_nop(NULL, rec, ftrace_addr);
 }
 
-/* TODO: 读到这里了... */
 static void ftrace_replace_code(int enable)
 {
 	struct dyn_ftrace *rec;
