@@ -82,6 +82,7 @@ static struct ftrace_ops ftrace_list_end __read_mostly =
 };
 
 static struct ftrace_ops *ftrace_list __read_mostly = &ftrace_list_end;
+/* ftrace_trace_function 初始化成ftrace_stub */
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t __ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t ftrace_pid_function __read_mostly = ftrace_stub;
@@ -126,6 +127,9 @@ static void set_ftrace_pid_function(ftrace_func_t func)
  * This NULLs the ftrace function and in essence stops
  * tracing.  There may be lag
  */
+/*
+ * 清空ftrace 函数，停止追踪，可能会有滞后
+ */
 void clear_ftrace_function(void)
 {
 	ftrace_trace_function = ftrace_stub;
@@ -147,6 +151,7 @@ static void ftrace_test_stop_func(unsigned long ip, unsigned long parent_ip)
 }
 #endif
 
+/* 注册追踪函数 */
 static int __register_ftrace_function(struct ftrace_ops *ops)
 {
 	ops->next = ftrace_list;
@@ -161,6 +166,7 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 	if (ftrace_enabled) {
 		ftrace_func_t func;
 
+		/* 如果只有一个函数，则设置成这个函数，如果有多个则设置成循环遍历 */
 		if (ops->next == &ftrace_list_end)
 			func = ops->func;
 		else
@@ -178,7 +184,9 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 #ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 		ftrace_trace_function = func;
 #else
+		/* 指向具体的操作函数 */
 		__ftrace_trace_function = func;
+		/* 测试是否停止追踪，如果不是，调用上边具体的操作函数 */
 		ftrace_trace_function = ftrace_test_stop_func;
 #endif
 	}

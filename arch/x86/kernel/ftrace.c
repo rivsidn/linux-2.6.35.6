@@ -186,6 +186,10 @@ static void ftrace_mod_code(void)
 	 * But if one were to fail, then they all should, and if one were
 	 * to succeed, then they all should.
 	 */
+	/*
+	 * probe_kernel_write() 参数:
+	 * 地址，内容，长度
+	 */
 	mod_code_status = probe_kernel_write(mod_code_ip, mod_code_newcode,
 					     MCOUNT_INSN_SIZE);
 
@@ -297,9 +301,6 @@ do_ftrace_mod_code(unsigned long ip, void *new_code)
 
 	return mod_code_status;
 }
-
-
-
 
 static unsigned char ftrace_nop[MCOUNT_INSN_SIZE];
 
@@ -517,6 +518,9 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 * happen. This tool is too much intrusive to
 	 * ignore such a protection.
 	 */
+	/*
+	 * 设置返回地址
+	 */
 	asm volatile(
 		"1: " _ASM_MOV " (%[parent]), %[old]\n"
 		"2: " _ASM_MOV " %[return_hooker], (%[parent])\n"
@@ -536,6 +540,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		: "memory"
 	);
 
+	/* 如果出现异常，停止追踪并告警 */
 	if (unlikely(faulted)) {
 		ftrace_graph_stop();
 		WARN_ON(1);

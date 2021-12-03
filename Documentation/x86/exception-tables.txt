@@ -4,6 +4,8 @@
 When a process runs in kernel mode, it often has to access user
 mode memory whose address has been passed by an untrusted program.
 To protect itself the kernel has to verify this address.
+当程序运行到内核态的时候，可能会需要访问用户态的地址，这个地是由一个
+不被信任的程序提供的，为了保护自己，内核访问该地址之前必须要确认。
 
 In older versions of Linux this was done with the
 int verify_area(int type, const void * addr, unsigned long size)

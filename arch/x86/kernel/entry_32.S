@@ -1171,17 +1171,19 @@ ENDPROC(xen_failsafe_callback)
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 
+/* 定义了function tracer 同时定义了 dynamic ftrace  */
+
 ENTRY(mcount)
 	ret
 END(mcount)
 
 ENTRY(ftrace_caller)
-	cmpl $0, function_trace_stop
-	jne  ftrace_stub
+	cmpl $0, function_trace_stop	# function_trace_stop 是否等于 0
+	jne  ftrace_stub		# 如果不想等跳转到 ftrace_stub 执行
 
-	pushl %eax
-	pushl %ecx
-	pushl %edx
+	pushl %eax			# eax 入栈
+	pushl %ecx			# ecx 入栈
+	pushl %edx			# edx 入栈
 	movl 0xc(%esp), %eax
 	movl 0x4(%ebp), %edx
 	subl $MCOUNT_INSN_SIZE, %eax
@@ -1190,9 +1192,9 @@ ENTRY(ftrace_caller)
 ftrace_call:
 	call ftrace_stub
 
-	popl %edx
-	popl %ecx
-	popl %eax
+	popl %edx			# edx 出栈
+	popl %ecx			# ecx 出栈
+	popl %eax			# eax 出栈
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
 ftrace_graph_call:
@@ -1206,56 +1208,60 @@ END(ftrace_caller)
 
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
-ENTRY(mcount)
-	cmpl $0, function_trace_stop
-	jne  ftrace_stub
+/* 定义了function tracer 但是没定义 dynamic ftrace 的情况 */
 
-	cmpl $ftrace_stub, ftrace_trace_function
-	jnz trace
+ENTRY(mcount)
+	cmpl $0, function_trace_stop			# function_trace_stop 是否为 0
+	jne  ftrace_stub				# 如果不相等，也就是 function_trace_stop 为 1，跳转到 ftrace_stub
+
+	# 注意此处的比较，ftrace_stub 是一个标签，ftrace_trace_function 是一个函数指针，其中含有
+	# 函数的地址，下边比较的意思是，拿ftrace_trace_function 的内容与 ftrace_stub 标签的地址相比较.
+	cmpl $ftrace_stub, ftrace_trace_function	# 比较两个函数
+	jnz trace					# 如果不相等，即开启了trace，跳转到trace 执行
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	cmpl $ftrace_stub, ftrace_graph_return
+	cmpl $ftrace_stub, ftrace_graph_return		# 同上，测试trace 是否开启
 	jnz ftrace_graph_caller
 
 	cmpl $ftrace_graph_entry_stub, ftrace_graph_entry
 	jnz ftrace_graph_caller
 #endif
 .globl ftrace_stub
-ftrace_stub:
+ftrace_stub:						# 直接返回
 	ret
 
 	/* taken from glibc */
 trace:
-	pushl %eax
+	pushl %eax					# 压栈
 	pushl %ecx
 	pushl %edx
-	movl 0xc(%esp), %eax
-	movl 0x4(%ebp), %edx
-	subl $MCOUNT_INSN_SIZE, %eax
+	movl 0xc(%esp), %eax				# 设置第一个参数
+	movl 0x4(%ebp), %edx				# 设置第二个参数
+	subl $MCOUNT_INSN_SIZE, %eax			# 地一个参数需要减去 call mcount 偏移
 
-	call *ftrace_trace_function
+	call *ftrace_trace_function			# 调用钩子函数
 
-	popl %edx
+	popl %edx					# 出栈
 	popl %ecx
 	popl %eax
-	jmp ftrace_stub
+	jmp ftrace_stub					# 返回
 END(mcount)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
-	cmpl $0, function_trace_stop
-	jne ftrace_stub
+	cmpl $0, function_trace_stop			# 测试是否停止
+	jne ftrace_stub					# 如果停止，直接返回
 
-	pushl %eax
+	pushl %eax					# 入栈
 	pushl %ecx
 	pushl %edx
-	movl 0xc(%esp), %edx
-	lea 0x4(%ebp), %eax
-	movl (%ebp), %ecx
+	movl 0xc(%esp), %edx				# 设置第二个参数
+	lea 0x4(%ebp), %eax				# 设置第一个参数，地址lea(load effective address)
+	movl (%ebp), %ecx				# 设置第三个参数
 	subl $MCOUNT_INSN_SIZE, %edx
-	call prepare_ftrace_return
-	popl %edx
+	call prepare_ftrace_return			# 设置返回地址为 return_to_handler
+	popl %edx					# 出栈
 	popl %ecx
 	popl %eax
 	ret
@@ -1265,7 +1271,7 @@ END(ftrace_graph_caller)
 return_to_handler:
 	pushl %eax
 	pushl %edx
-	movl %ebp, %eax
+	movl %ebp, %eax					# 设置第一个参数
 	call ftrace_return_to_handler
 	movl %eax, %ecx
 	popl %edx

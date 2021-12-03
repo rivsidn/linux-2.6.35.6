@@ -67,7 +67,6 @@ static struct tracer_flags tracer_flags = {
 
 static struct trace_array *graph_array;
 
-
 /* Add a function return address to the trace stack on thread info.*/
 int
 ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
@@ -93,6 +92,7 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
 
 	calltime = trace_clock_local();
 
+	/* 设置追踪信息 */
 	index = ++current->curr_ret_stack;
 	barrier();
 	current->ret_stack[index].ret = ret;
