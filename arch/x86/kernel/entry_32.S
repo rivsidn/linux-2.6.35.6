@@ -1179,7 +1179,7 @@ END(mcount)
 
 ENTRY(ftrace_caller)
 	cmpl $0, function_trace_stop	# function_trace_stop 是否等于 0
-	jne  ftrace_stub		# 如果不想等跳转到 ftrace_stub 执行
+	jne  ftrace_stub		# 如果不相等跳转到 ftrace_stub 执行
 
 	pushl %eax			# eax 入栈
 	pushl %ecx			# ecx 入栈
@@ -1190,7 +1190,7 @@ ENTRY(ftrace_caller)
 
 .globl ftrace_call
 ftrace_call:
-	call ftrace_stub
+	call ftrace_stub		# 使能的时候会替换这条汇编
 
 	popl %edx			# edx 出栈
 	popl %ecx			# ecx 出栈

@@ -186,7 +186,7 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 #else
 		/* 指向具体的操作函数 */
 		__ftrace_trace_function = func;
-		/* 测试是否停止追踪，如果不是，调用上边具体的操作函数 */
+		/* 测试追踪是否开启，如果不是，调用上边具体的操作函数 */
 		ftrace_trace_function = ftrace_test_stop_func;
 #endif
 	}
@@ -1053,6 +1053,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	unsigned long ftrace_addr;
 	unsigned long flag = 0UL;
 
+	/* 修改后的地址，将原来要执行mcount 的代码跳转到 FTRACE_ADDR 处执行 */
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
 	/*
@@ -1088,6 +1089,11 @@ static void ftrace_replace_code(int enable)
 	struct ftrace_page *pg;
 	int failed;
 
+	/*
+	 * recordmcount.pl 中将所有调用goto mcount 的代码指针放在某一位置并
+	 * 将goto mcount 替换成nop.
+	 * 在这里，检测所有位置，是否需要修改，需要修改的则修改.
+	 */
 	do_for_each_ftrace_rec(pg, rec) {
 		/*
 		 * Skip over free records, records that have
@@ -2352,6 +2358,7 @@ static void __init set_ftrace_early_filter(char *buf, int enable)
 	}
 }
 
+/* 根据内核启动参数，设置过滤 */
 static void __init set_ftrace_early_filters(void)
 {
 	if (ftrace_filter_buf[0])
@@ -2765,6 +2772,7 @@ struct notifier_block ftrace_module_nb = {
 extern unsigned long __start_mcount_loc[];
 extern unsigned long __stop_mcount_loc[];
 
+/* CONFIG_DYNAMIC_FTRACE 调用初始化函数 */
 void __init ftrace_init(void)
 {
 	unsigned long count, addr, flags;
@@ -2783,6 +2791,7 @@ void __init ftrace_init(void)
 
 	count = __stop_mcount_loc - __start_mcount_loc;
 
+	/* 调用goto mcount 的代码段数量，根据数量做初始化 */
 	ret = ftrace_dyn_table_alloc(count);
 	if (ret)
 		goto failed;
