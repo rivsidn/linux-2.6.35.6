@@ -494,7 +494,7 @@ void trace_parser_put(struct trace_parser *parser)
 }
 
 /*
- * trace_get_user - reads the user input string separated by  space
+ * trace_get_user - reads the user input string separated by space
  * (matched by isspace(ch))
  *
  * For each string found the 'struct trace_parser' is updated,
@@ -503,6 +503,9 @@ void trace_parser_put(struct trace_parser *parser)
  * Returns number of bytes read.
  *
  * See kernel/trace/trace.h for 'struct trace_parser' details.
+ */
+/*
+ * 获取用户态输入
  */
 int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 	size_t cnt, loff_t *ppos)
@@ -649,6 +652,10 @@ unsigned long __read_mostly	tracing_max_latency;
  * structure. (this way the maximum trace is permanently saved,
  * for later retrieval via /sys/kernel/debug/tracing/latency_trace)
  */
+/*
+ * 更新max_tr 中的内容，之后可以通过 /sys/kernel/debug/tracing/latency_trace
+ * 查看.
+ */
 static void
 __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 {
@@ -674,6 +681,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tracing_record_cmdline(tsk);
 }
 
+/* 读到这里了 */
 /**
  * update_max_tr - snapshot all trace buffers from global_trace to max_tr
  * @tr: tracer

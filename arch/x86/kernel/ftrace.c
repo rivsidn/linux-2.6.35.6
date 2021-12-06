@@ -304,6 +304,7 @@ do_ftrace_mod_code(unsigned long ip, void *new_code)
 
 static unsigned char ftrace_nop[MCOUNT_INSN_SIZE];
 
+/* 返回要替换的 nop 操作，将原本执行call mcount 的地方替换成nop */
 static unsigned char *ftrace_nop_replace(void)
 {
 	return ftrace_nop;
@@ -329,6 +330,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
+	/* 函数中的 old_code 只是起测试作用 */
 	/* Make sure it is what we expect it to be */
 	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
 		return -EINVAL;
