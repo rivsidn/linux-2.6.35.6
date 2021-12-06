@@ -86,6 +86,9 @@ static struct ftrace_ops trace_ops __read_mostly =
 /*
  * Should this new latency be reported/recorded?
  */
+/*
+ * 新的延迟是否应该被记录
+ */
 static int report_latency(cycle_t delta)
 {
 	if (tracing_thresh) {
@@ -150,6 +153,7 @@ probe_wakeup_sched_switch(void *ignore,
 	if (unlikely(!tracer_enabled || next != wakeup_task))
 		goto out_unlock;
 
+	/* 记录进程的调度时间 */
 	/* The task we are waiting for is waking up */
 	data = wakeup_trace->data[wakeup_cpu];
 
@@ -244,6 +248,7 @@ probe_wakeup(void *ignore, struct task_struct *p, int success)
 
 	local_save_flags(flags);
 
+	/* 记录进程被唤醒的时间 */
 	data = wakeup_trace->data[wakeup_cpu];
 	data->preempt_timestamp = ftrace_now(cpu);
 	tracing_sched_wakeup_trace(wakeup_trace, p, current, flags, pc);
@@ -385,6 +390,7 @@ static struct tracer wakeup_tracer __read_mostly =
 #endif
 };
 
+/* 追踪实时进程 */
 static struct tracer wakeup_rt_tracer __read_mostly =
 {
 	.name		= "wakeup_rt",
