@@ -681,7 +681,6 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	tracing_record_cmdline(tsk);
 }
 
-/* 读到这里了 */
 /**
  * update_max_tr - snapshot all trace buffers from global_trace to max_tr
  * @tr: tracer
@@ -946,6 +945,7 @@ void tracing_reset_online_cpus(struct trace_array *tr)
 	ring_buffer_record_enable(buffer);
 }
 
+/* 重置当前CPU */
 void tracing_reset_current(int cpu)
 {
 	tracing_reset(&global_trace, cpu);
