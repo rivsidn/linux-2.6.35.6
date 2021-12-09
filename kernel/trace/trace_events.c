@@ -864,6 +864,7 @@ static struct dentry *event_trace_events_dir(void)
 	if (!d_tracer)
 		return NULL;
 
+	/* 创建events 目录 */
 	d_events = debugfs_create_dir("events", d_tracer);
 	if (!d_events)
 		pr_warning("Could not create debugfs "
@@ -1293,6 +1294,7 @@ static __init int event_trace_init(void)
 	if (!d_tracer)
 		return 0;
 
+	/* 查询可用的event */
 	entry = debugfs_create_file("available_events", 0444, d_tracer,
 				    (void *)&show_event_seq_ops,
 				    &ftrace_avail_fops);
@@ -1300,6 +1302,7 @@ static __init int event_trace_init(void)
 		pr_warning("Could not create debugfs "
 			   "'available_events' entry\n");
 
+	/* 设置event */
 	entry = debugfs_create_file("set_event", 0644, d_tracer,
 				    (void *)&show_set_event_seq_ops,
 				    &ftrace_set_event_fops);
@@ -1320,6 +1323,12 @@ static __init int event_trace_init(void)
 			  ring_buffer_print_entry_header,
 			  &ftrace_show_header_fops);
 
+	/*
+	 * 0	全部没使能
+	 * 1	全部使能
+	 * X	部分使能，部分没使能
+	 * ?	该文件不会对任何事件产生影响
+	 */
 	trace_create_file("enable", 0644, d_events,
 			  NULL, &ftrace_system_enable_fops);
 
@@ -1340,10 +1349,12 @@ static __init int event_trace_init(void)
 				       &ftrace_enable_fops,
 				       &ftrace_event_filter_fops,
 				       &ftrace_event_format_fops);
+		/* 添加所有events 到ftrace_events 中 */
 		if (!ret)
 			list_add(&call->list, &ftrace_events);
 	}
 
+	/* 通过启动参数设置要启动的event */
 	while (true) {
 		token = strsep(&buf, ",");
 
@@ -1357,6 +1368,7 @@ static __init int event_trace_init(void)
 			pr_warning("Failed to enable trace event: %s\n", token);
 	}
 
+	/* 添加通知链，添加模块的时候增加模块的事件 */
 	ret = register_module_notifier(&trace_module_nb);
 	if (ret)
 		pr_warning("Failed to register trace events module notifier\n");
@@ -1586,6 +1598,7 @@ static __init int event_trace_self_tests_init(void)
 	return 0;
 }
 
+/* 最后调用的初始化函数 */
 late_initcall(event_trace_self_tests_init);
 
 #endif
