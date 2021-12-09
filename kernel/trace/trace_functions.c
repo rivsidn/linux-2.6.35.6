@@ -9,6 +9,11 @@
  *  Copyright (C) 2004-2006 Ingo Molnar
  *  Copyright (C) 2004 William Lee Irwin III
  */
+/*
+ * 该文件主要包含两部分内容:
+ * 1. 注册 function tracer
+ * 2. 注册 ftrace command(traceon, traceoff)
+ */
 #include <linux/ring_buffer.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -182,6 +187,7 @@ static struct tracer_flags func_flags = {
 	.opts = func_opts
 };
 
+/* 注册钩子函数并开启追踪，此处开启之后应该不会向缓冲区中写入 */
 static void tracing_start_function_trace(void)
 {
 	ftrace_function_enabled = 0;

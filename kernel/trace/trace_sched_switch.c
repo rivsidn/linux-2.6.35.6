@@ -4,6 +4,9 @@
  * Copyright (C) 2007 Steven Rostedt <srostedt@redhat.com>
  *
  */
+/*
+ * 追踪上下文切换
+ */
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/debugfs.h>
@@ -296,6 +299,7 @@ static struct tracer sched_switch_trace __read_mostly =
 
 __init static int init_sched_switch_trace(void)
 {
+	/* 注册tracer */
 	return register_tracer(&sched_switch_trace);
 }
 device_initcall(init_sched_switch_trace);
