@@ -694,6 +694,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	}
 	buf[cnt] = '\0';
 
+	/* 应用过滤条件 */
 	err = apply_event_filter(call, buf);
 	free_page((unsigned long) buf);
 	if (err < 0)
