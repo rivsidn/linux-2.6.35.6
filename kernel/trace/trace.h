@@ -770,8 +770,8 @@ struct ftrace_event_field {
 };
 
 struct event_filter {
-	int			n_preds;
-	struct filter_pred	**preds;
+	int			n_preds;		//数量
+	struct filter_pred	**preds;		//指针数组
 	char			*filter_string;
 };
 

@@ -130,6 +130,7 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_event_raw_init);
 
+/* 使能、去使能的时候挂载钩子函数 */
 static int ftrace_event_enable_disable(struct ftrace_event_call *call,
 					int enable)
 {

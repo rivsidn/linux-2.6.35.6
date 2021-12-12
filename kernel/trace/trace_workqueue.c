@@ -263,6 +263,7 @@ int __init trace_workqueue_early_init(void)
 {
 	int ret, cpu;
 
+	/* tracepoint 中注册回调函数 */
 	ret = register_trace_workqueue_insertion(probe_workqueue_insertion, NULL);
 	if (ret)
 		goto out;

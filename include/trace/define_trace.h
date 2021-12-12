@@ -22,6 +22,7 @@
 
 #include <linux/stringify.h>
 
+/* 生成对应的struct tracepoint{} 结构体 */
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, args, tstruct, assign, print)	\
 	DEFINE_TRACE(name)

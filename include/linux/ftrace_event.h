@@ -158,6 +158,7 @@ enum {
 	TRACE_EVENT_FL_FILTERED	= (1 << TRACE_EVENT_FL_FILTERED_BIT),
 };
 
+/* 定义了ftrace 事件 */
 struct ftrace_event_call {
 	struct list_head	list;
 	struct ftrace_event_class *class;

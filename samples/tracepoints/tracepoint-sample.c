@@ -13,6 +13,7 @@
 #include <linux/proc_fs.h>
 #include "tp-samples-trace.h"
 
+/* tracepoint 可以直接通过这种方式生成 */
 DEFINE_TRACE(subsys_event);
 DEFINE_TRACE(subsys_eventb);
 

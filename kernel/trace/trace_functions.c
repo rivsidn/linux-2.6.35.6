@@ -337,6 +337,10 @@ ftrace_trace_onoff_unreg(char *glob, char *cmd, char *param)
 	return 0;
 }
 
+/*
+ * ftrace 支持匹配特定函数时执行特定的命令
+ * 该函数为traceon、traceoff 命令的回调函数，实现的方式就是在ftrace 中注册钩子函数
+ */
 static int
 ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
 {

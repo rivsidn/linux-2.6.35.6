@@ -45,7 +45,7 @@ enum filter_op_ids
 struct filter_op {
 	int id;
 	char *string;
-	int precedence;
+	int precedence;		//优先级
 };
 
 static struct filter_op filter_ops[] = {

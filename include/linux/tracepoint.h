@@ -110,7 +110,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  *  will override the TRACE_EVENT and break the second include.
  */
 
-#ifndef DECLARE_TRACE
+#ifndef DECLARE_TRACE		//只有没定义该宏的时候才会使用下边的宏展开
 
 #define TP_PROTO(args...)	args
 #define TP_ARGS(args...)	args
@@ -148,6 +148,9 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
  * Make sure the alignment of the structure in the __tracepoints section will
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
+ */
+/*
+ * 如果定义了CONFIG_TRACEPOINTS，则展开成声明和几个内联函数
  */
 #define __DECLARE_TRACE(name, proto, args, data_proto, data_args)	\
 	extern struct tracepoint __tracepoint_##name;			\
@@ -241,7 +244,7 @@ static inline void tracepoint_update_probe_range(struct tracepoint *begin,
 
 #endif /* DECLARE_TRACE */
 
-#ifndef TRACE_EVENT
+#ifndef TRACE_EVENT		//只有没定义该宏的时候才会使用下边的宏展开
 /*
  * For use with the TRACE_EVENT macro:
  *

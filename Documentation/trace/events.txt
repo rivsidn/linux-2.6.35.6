@@ -15,6 +15,10 @@ the kernel developer must provide code snippets which define how the
 tracing information is saved into the tracing buffer, and how the
 tracing information should be printed.
 
+并不是所有的tracepoints 都可以使用event tracing系统;
+内核开发者必须定义要往traceing buffer 中写入的数据，和tracing
+information 该如何打印.
+
 2. Using Event Tracing
 ======================
 
@@ -190,8 +194,10 @@ And for string fields they are:
 ==, !=
 
 Currently, only exact string matches are supported.
+当前只支持匹配确定的字符串.
 
 Currently, the maximum number of predicates in a filter is 16.
+当前支持断言的最大个数为 16.
 
 5.2 Setting filters
 -------------------
