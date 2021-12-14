@@ -44,12 +44,14 @@ bool nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	__be16 *portptr;
 	u_int16_t off;
 
+	/* 获取端口号 */
 	if (maniptype == IP_NAT_MANIP_SRC)
 		portptr = &tuple->src.u.all;
 	else
 		portptr = &tuple->dst.u.all;
 
 	/* If no range specified... */
+	/* 地址伪装的时候没有指定端口号范围，走下边的执行流程 */
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED)) {
 		/* If it's dst rewrite, can't change port */
 		if (maniptype == IP_NAT_MANIP_DST)

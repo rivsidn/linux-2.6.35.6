@@ -18,6 +18,7 @@
 #include <net/netfilter/nf_nat_protocol.h>
 #include <net/netfilter/nf_nat_core.h>
 
+/* 静态变量 */
 static u_int16_t tcp_port_rover;
 
 static bool

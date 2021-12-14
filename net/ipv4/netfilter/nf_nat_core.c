@@ -250,13 +250,15 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		}
 	}
 
-	/* 2) Select the least-used IP/proto combination in the given
-	   range. */
+	/* 2) Select the least-used IP/proto combination in the given range. */
+	/* 2) 选择IP地址，地址伪装的时候只有一个IP地址，直接设置 */
 	*tuple = *orig_tuple;
 	find_best_ips_proto(zone, tuple, range, ct, maniptype);
 
-	/* 3) The per-protocol part of the manip is made to map into
-	   the range to make a unique tuple. */
+	/*
+	 * 3) The per-protocol part of the manip is made to map into
+	 * the range to make a unique tuple.
+	 */
 
 	rcu_read_lock();
 	proto = __nf_nat_proto_find(orig_tuple->dst.protonum);
@@ -311,7 +313,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 	nf_ct_invert_tuplepr(&curr_tuple,
 			     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
-	/* 为什么此处没有检测返回值？此处没有检测返回值的逻辑是什么？ */
+	/* TODO: 此处为什么没有检测返回值 */
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {
