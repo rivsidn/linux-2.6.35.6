@@ -331,6 +331,12 @@ nf_nat_setup_info(struct nf_conn *ct,
 	}
 
 	/* Place in source hash if this is the first time. */
+	/*
+	 * TODO: 暂时认为，端口个数超过最大限制的时候，会获取到相同的五元组。
+	 * 举例: 假如当多个IP 做伪装访问相同的服务器端口号的时候，如果做伪装
+	 * 	 的端口号不够，此时会如何处理？
+	 *	 从服务器回来的包会如何获取回到正确的设备中？
+	 */
 	if (have_to_hash) {
 		unsigned int srchash;
 
