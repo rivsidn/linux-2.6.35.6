@@ -21,6 +21,7 @@
 #define arch_idle_time(cpu) 0
 #endif
 
+/* 文件信息显示 */
 static int show_stat(struct seq_file *p, void *v)
 {
 	int i, j;
