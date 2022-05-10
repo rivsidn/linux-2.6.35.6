@@ -52,6 +52,7 @@ struct vlan_dev_info {
 	unsigned int				nr_egress_mappings;
 	struct vlan_priority_tci_mapping	*egress_priority_map[16];
 
+	/* 绑定vlan_id，每个物理设备只能绑定一个vlan_id */
 	u16					vlan_id;
 	u16					flags;
 
@@ -96,6 +97,7 @@ int vlan_dev_set_egress_priority(const struct net_device *dev,
 int vlan_dev_change_flags(const struct net_device *dev, u32 flag, u32 mask);
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 
+/* 检查是否可以向物理设备中添加该vlan */
 int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id);
 void vlan_setup(struct net_device *dev);
 int register_vlan_dev(struct net_device *dev);

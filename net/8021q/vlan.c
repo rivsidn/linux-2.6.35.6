@@ -190,6 +190,7 @@ int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 	const char *name = real_dev->name;
 	const struct net_device_ops *ops = real_dev->netdev_ops;
 
+	/* 检查硬件是否支持vlan特性 */
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
 		pr_info("8021q: VLANs not supported on %s\n", name);
 		return -EOPNOTSUPP;
@@ -206,6 +207,7 @@ int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 		return -EOPNOTSUPP;
 	}
 
+	/* 检查vlan设备是否已存在 */
 	if (__find_vlan_dev(real_dev, vlan_id) != NULL)
 		return -EEXIST;
 
@@ -221,6 +223,7 @@ int register_vlan_dev(struct net_device *dev)
 	struct vlan_group *grp, *ngrp = NULL;
 	int err;
 
+	/* 申请vlan_froup{} 结构体 */
 	grp = __vlan_find_group(real_dev);
 	if (!grp) {
 		ngrp = grp = vlan_group_alloc(real_dev);
@@ -231,10 +234,12 @@ int register_vlan_dev(struct net_device *dev)
 			goto out_free_group;
 	}
 
+	/* 预申请指针数组 */
 	err = vlan_group_prealloc_vid(grp, vlan_id);
 	if (err < 0)
 		goto out_uninit_applicant;
 
+	/* 注册虚拟设备 */
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out_uninit_applicant;
@@ -248,9 +253,11 @@ int register_vlan_dev(struct net_device *dev)
 	/* So, got the sucker initialized, now lets place
 	 * it into our local structure.
 	 */
+	/* 将设备绑定到group指针数组中 */
 	vlan_group_set_device(grp, vlan_id, dev);
 	grp->nr_vlans++;
 
+	/* 硬件设置 */
 	if (ngrp && real_dev->features & NETIF_F_HW_VLAN_RX)
 		ops->ndo_vlan_rx_register(real_dev, ngrp);
 	if (real_dev->features & NETIF_F_HW_VLAN_FILTER)

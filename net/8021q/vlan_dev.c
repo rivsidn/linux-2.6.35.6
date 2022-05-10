@@ -137,6 +137,9 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
  *  		    stuff.  It has been commented out now...  --Ben
  *
  */
+/*
+ * vlan报文收包函数
+ */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev)
 {
