@@ -903,6 +903,7 @@ static int arp_process(struct sk_buff *skb)
 				if (n)
 					neigh_release(n);
 
+				/* LOCALLY_ENQUEUED 表示是刚从代理队列中取出 */
 				if (NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED ||
 				    skb->pkt_type == PACKET_HOST ||
 				    in_dev->arp_parms->proxy_delay == 0) {
