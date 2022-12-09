@@ -2121,12 +2121,9 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (!in_dev)
 		goto out;
 
-	/* Check for the most weird martians, which can be not detected
-	   by fib_lookup.
-	 */
+	/* Check for the most weird martians, which can be not detected by fib_lookup. */
 
-	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr) ||
-	    ipv4_is_loopback(saddr))
+	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr) || ipv4_is_loopback(saddr))
 		goto martian_source;
 
 	if (daddr == htonl(0xFFFFFFFF) || (saddr == 0 && daddr == 0))
@@ -2138,8 +2135,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (ipv4_is_zeronet(saddr))
 		goto martian_source;
 
-	if (ipv4_is_lbcast(daddr) || ipv4_is_zeronet(daddr) ||
-	    ipv4_is_loopback(daddr))
+	if (ipv4_is_lbcast(daddr) || ipv4_is_zeronet(daddr) || ipv4_is_loopback(daddr))
 		goto martian_destination;
 
 	/*
@@ -2277,6 +2273,9 @@ martian_source:
 	goto e_inval;
 }
 
+/*
+ * 收包路由查询，此处的dev为收包设备
+ */
 int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			   u8 tos, struct net_device *dev, bool noref)
 {
@@ -2287,12 +2286,14 @@ int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	net = dev_net(dev);
 
+	/* 超过限制之后则不查询路由缓存 */
 	if (!rt_caching(net))
 		goto skip_cache;
 
 	tos &= IPTOS_RT_MASK;
 	hash = rt_hash(daddr, saddr, iif, rt_genid(net));
 
+	/* 查询路由缓存 */
 	rcu_read_lock();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
 	     rth = rcu_dereference(rth->u.dst.rt_next)) {

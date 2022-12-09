@@ -172,6 +172,7 @@ void *dst_alloc(struct dst_ops *ops)
 		if (ops->gc(ops))
 			return NULL;
 	}
+	/* 此处申请内存的kmem_cache 是ops 提供的 */
 	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
 	if (!dst)
 		return NULL;

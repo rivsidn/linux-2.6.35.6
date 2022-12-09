@@ -255,6 +255,7 @@ int fib_table_lookup(struct fib_table *tb,
 		struct hlist_head *head;
 		struct hlist_node *node;
 		struct fib_node *f;
+		/* 目的IP作为key值 */
 		__be32 k = fz_key(flp->fl4_dst, fz);
 
 		head = &fz->fz_hash[fn_hash(k, fz)];

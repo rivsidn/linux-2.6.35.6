@@ -41,7 +41,7 @@ struct fib_config {
 	u32			fc_flow;
 	u32			fc_nlflags;
 	struct nl_info		fc_nlinfo;
- };
+};
 
 struct fib_info;
 
@@ -179,15 +179,18 @@ static inline struct fib_table *fib_new_table(struct net *net, u32 id)
 	return fib_get_table(net, id);
 }
 
+/* 查询路由表 */
 static inline int fib_lookup(struct net *net, const struct flowi *flp,
 			     struct fib_result *res)
 {
 	struct fib_table *table;
 
+	/* 先查询本地路由 */
 	table = fib_get_table(net, RT_TABLE_LOCAL);
 	if (!fib_table_lookup(table, flp, res))
 		return 0;
 
+	/* 查询main路由 */
 	table = fib_get_table(net, RT_TABLE_MAIN);
 	if (!fib_table_lookup(table, flp, res))
 		return 0;

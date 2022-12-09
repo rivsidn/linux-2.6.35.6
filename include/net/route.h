@@ -49,6 +49,7 @@
 
 struct fib_nh;
 struct inet_peer;
+/* IPv4的路由缓存表项 */
 struct rtable {
 	union {
 		struct dst_entry	dst;
@@ -122,6 +123,13 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 	return ip_route_input_common(skb, dst, src, tos, devin, false);
 }
 
+/*
+ * skb		报文
+ * dst		目的地址
+ * src		源地址
+ * tos		ip头tos信息
+ * devin	收包设备
+ */
 static inline int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
 				       u8 tos, struct net_device *devin)
 {

@@ -51,6 +51,7 @@ static int __net_init fib4_rules_init(struct net *net)
 {
 	struct fib_table *local_table, *main_table;
 
+	/* 创建两个hash表 */
 	local_table = fib_hash_table(RT_TABLE_LOCAL);
 	if (local_table == NULL)
 		return -ENOMEM;
