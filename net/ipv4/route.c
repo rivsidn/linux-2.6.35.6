@@ -1074,6 +1074,7 @@ static int slow_chain_length(const struct rtable *head)
 	return length >> FRACT_BITS;
 }
 
+/* 插入路由缓存到hash表中 */
 static int rt_intern_hash(unsigned hash, struct rtable *rt,
 			  struct rtable **rp, struct sk_buff *skb, int ifindex)
 {
@@ -1956,13 +1957,13 @@ static void ip_handle_martian_source(struct net_device *dev,
 #endif
 }
 
+/* 构造路由缓存 */
 static int __mkroute_input(struct sk_buff *skb,
 			   struct fib_result *res,
 			   struct in_device *in_dev,
 			   __be32 daddr, __be32 saddr, u32 tos,
 			   struct rtable **result)
 {
-
 	struct rtable *rth;
 	int err;
 	struct in_device *out_dev;
@@ -2012,7 +2013,6 @@ static int __mkroute_input(struct sk_buff *skb,
 			goto cleanup;
 		}
 	}
-
 
 	rth = dst_alloc(&ipv4_dst_ops);
 	if (!rth) {
@@ -2074,13 +2074,13 @@ static int ip_mkroute_input(struct sk_buff *skb,
 #endif
 
 	/* create a routing cache entry */
+	/* 创建路由缓存 */
 	err = __mkroute_input(skb, res, in_dev, daddr, saddr, tos, &rth);
 	if (err)
 		return err;
 
 	/* put it into the cache */
-	hash = rt_hash(daddr, saddr, fl->iif,
-		       rt_genid(dev_net(rth->u.dst.dev)));
+	hash = rt_hash(daddr, saddr, fl->iif, rt_genid(dev_net(rth->u.dst.dev)));
 	return rt_intern_hash(hash, rth, NULL, skb, fl->iif);
 }
 
@@ -2099,6 +2099,10 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	struct fib_result res;
 	struct in_device *in_dev = in_dev_get(dev);
+	/*
+	 * 设置的scope会在fib_semantic_match()中检查，查询到的路由不能比此处的scope更远。
+	 * 此处设置scope为RT_SCOPE_UNIVERSE 并没有实际意义，因为不会有更远的存在。
+	 */
 	struct flowi fl = { .nl_u = { .ip4_u =
 				      { .daddr = daddr,
 					.saddr = saddr,
@@ -2140,6 +2144,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	/*
 	 *	Now we are ready to route packet.
+	 *	查询路由
 	 */
 	if ((err = fib_lookup(net, &fl, &res)) != 0) {
 		if (!IN_DEV_FORWARD(in_dev))
@@ -2153,6 +2158,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (res.type == RTN_BROADCAST)
 		goto brd_input;
 
+	/* 到本机的报文 */
 	if (res.type == RTN_LOCAL) {
 		int result;
 		result = fib_validate_source(saddr, daddr, tos,
@@ -2225,7 +2231,7 @@ local_input:
 	rth->idev	= in_dev_get(rth->u.dst.dev);
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
-	rth->u.dst.input= ip_local_deliver;
+	rth->u.dst.input= ip_local_deliver;		//报文上送本机
 	rth->rt_flags 	= flags|RTCF_LOCAL;
 	if (res.type == RTN_UNREACHABLE) {
 		rth->u.dst.input= ip_error;
@@ -2712,6 +2718,7 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 	if (!rt_caching(net))
 		goto slow_output;
 
+	/* 查询路由缓存 */
 	hash = rt_hash(flp->fl4_dst, flp->fl4_src, flp->oif, rt_genid(net));
 
 	rcu_read_lock_bh();

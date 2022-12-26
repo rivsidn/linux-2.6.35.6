@@ -677,7 +677,9 @@ out:
    to fib engine. It is legal, because all events occur
    only when netlink is already locked.
  */
-
+/*
+ * 添加路由
+ */
 static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
 	struct net *net = dev_net(ifa->ifa_dev->dev);

@@ -224,6 +224,11 @@ fn_new_zone(struct fn_hash *table, int z)
 	fz->fz_order = z;
 	fz->fz_mask = inet_make_mask(z);
 
+	/*
+	 * fn_zone 在 fn_zone_list 中按照掩码由大到小顺序排列，插入一个新的fn_zone时
+	 * 需要先查找是否有更大的fn_zone，如果存在则将该fn_zone插入到更精确的fn_zone
+	 * 后，如果不存在更大的则自己排在最前边.
+	 */
 	/* Find the first not empty zone with more specific mask */
 	for (i=z+1; i<=32; i++)
 		if (table->fn_zones[i])
@@ -250,6 +255,9 @@ int fib_table_lookup(struct fib_table *tb,
 	struct fn_zone *fz;
 	struct fn_hash *t = (struct fn_hash *)tb->tb_data;
 
+	/*
+	 * 最长前缀匹配，这里的fz 是按照掩码长度由长到短排序的
+	 */
 	read_lock(&fib_hash_lock);
 	for (fz = t->fn_zone_list; fz; fz = fz->fz_next) {
 		struct hlist_head *head;
@@ -260,12 +268,14 @@ int fib_table_lookup(struct fib_table *tb,
 
 		head = &fz->fz_hash[fn_hash(k, fz)];
 		hlist_for_each_entry(f, node, head, fn_hash) {
+			/* 查找匹配的key */
 			if (f->fn_key != k)
 				continue;
 
 			err = fib_semantic_match(&f->fn_alias,
 						 flp, res,
 						 fz->fz_order);
+			/* 查找到第一个合适的即退出 */
 			if (err <= 0)
 				goto out;
 		}

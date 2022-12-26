@@ -129,6 +129,8 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
  * src		源地址
  * tos		ip头tos信息
  * devin	收包设备
+ *
+ * 获取dst，但并不增加引用计数，为了防止出现出现高速缓存冲突
  */
 static inline int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
 				       u8 tos, struct net_device *devin)

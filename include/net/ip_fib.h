@@ -20,6 +20,7 @@
 #include <linux/seq_file.h>
 #include <net/fib_rules.h>
 
+/* 路由配置 */
 struct fib_config {
 	u8			fc_dst_len;
 	u8			fc_tos;

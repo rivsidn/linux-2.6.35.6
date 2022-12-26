@@ -184,6 +184,7 @@ struct dst_entry * dst_clone(struct dst_entry * dst)
 
 extern void dst_release(struct dst_entry *dst);
 
+/* 释放dst，仅仅在被引用的时候有效 */
 static inline void refdst_drop(unsigned long refdst)
 {
 	if (!(refdst & SKB_DST_NOREF))
@@ -207,6 +208,7 @@ static inline void skb_dst_drop(struct sk_buff *skb)
 static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb)
 {
 	nskb->_skb_refdst = oskb->_skb_refdst;
+	/* 如果被引用了需要增加引用计数 */
 	if (!(nskb->_skb_refdst & SKB_DST_NOREF))
 		dst_clone(skb_dst(nskb));
 }
@@ -219,9 +221,11 @@ static inline void skb_dst_copy(struct sk_buff *nskb, const struct sk_buff *oskb
  */
 static inline void skb_dst_force(struct sk_buff *skb)
 {
+	/* 如果处于没引用状态，设置引用 */
 	if (skb_dst_is_noref(skb)) {
 		WARN_ON(!rcu_read_lock_held());
 		skb->_skb_refdst &= ~SKB_DST_NOREF;
+		/* 增加引用计数 */
 		dst_clone(skb_dst(skb));
 	}
 }

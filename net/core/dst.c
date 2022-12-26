@@ -90,6 +90,7 @@ loop:
 		}
 		work_performed++;
 
+		/* 释放内存 */
 		dst = dst_destroy(dst);
 		if (dst) {
 			/* NOHASH and still referenced. Unless it is already

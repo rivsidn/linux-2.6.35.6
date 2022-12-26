@@ -869,13 +869,15 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 	struct fib_alias *fa;
 	int nh_sel = 0;
 
+	/* 遍历fib_alias{} */
 	list_for_each_entry_rcu(fa, head, fa_list) {
 		int err;
 
-		if (fa->fa_tos &&
-		    fa->fa_tos != flp->fl4_tos)
+		/* tos 必须相等 */
+		if (fa->fa_tos && fa->fa_tos != flp->fl4_tos)
 			continue;
 
+		/* 意思是查询的路由距离不能比要求的更远 */
 		if (fa->fa_scope < flp->fl4_scope)
 			continue;
 
@@ -894,6 +896,7 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 			case RTN_BROADCAST:
 			case RTN_ANYCAST:
 			case RTN_MULTICAST:
+				/* 遍历fib_nh{} */
 				for_nexthops(fi) {
 					if (nh->nh_flags&RTNH_F_DEAD)
 						continue;
@@ -924,6 +927,7 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 	return 1;
 
 out_fill_res:
+	/* 填充fib_result{} 退出 */
 	res->prefixlen = prefixlen;
 	res->nh_sel = nh_sel;
 	res->type = fa->fa_type;

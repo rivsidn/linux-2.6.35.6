@@ -440,12 +440,16 @@ struct sk_buff {
  * skb_dst - returns skb dst_entry
  * @skb: buffer
  *
+ * 返回dst_entry
+ *
  * Returns skb dst_entry, regardless of reference taken or not.
  */
 static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
 {
 	/* If refdst was not refcounted, check we still are in a 
 	 * rcu_read_lock section
+	 * refdst 处于SKB_DST_NOREF 状态，则必须在rcu 保护下，如果
+	 * 不是则报异常.
 	 */
 	WARN_ON((skb->_skb_refdst & SKB_DST_NOREF) &&
 		!rcu_read_lock_held() &&
@@ -476,6 +480,7 @@ static inline void skb_dst_set(struct sk_buff *skb, struct dst_entry *dst)
  */
 static inline void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
 {
+	/* 设置dst 为SKB_DST_NOREF，必须在rcu 保护下 */
 	WARN_ON(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
 	skb->_skb_refdst = (unsigned long)dst | SKB_DST_NOREF;
 }
@@ -486,6 +491,7 @@ static inline void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
  */
 static inline bool skb_dst_is_noref(const struct sk_buff *skb)
 {
+	/* 检查dst存在且没被引用 */
 	return (skb->_skb_refdst & SKB_DST_NOREF) && skb_dst(skb);
 }
 

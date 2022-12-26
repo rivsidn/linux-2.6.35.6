@@ -233,13 +233,16 @@ enum {
    Intermediate values are also possible f.e. interior routes
    could be assigned a value between UNIVERSE and LINK.
 */
+/*
+ * 到目的地址的距离，rt_scope_t{} 数值越小表示距离越远，数值越大距离越近
+ */
 
 enum rt_scope_t {
-	RT_SCOPE_UNIVERSE=0,
+	RT_SCOPE_UNIVERSE=0,		//任意地址
 /* User defined values  */
 	RT_SCOPE_SITE=200,
-	RT_SCOPE_LINK=253,
-	RT_SCOPE_HOST=254,
+	RT_SCOPE_LINK=253,		//直连链路
+	RT_SCOPE_HOST=254,		//本地地址
 	RT_SCOPE_NOWHERE=255
 };
 
