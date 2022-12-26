@@ -675,6 +675,7 @@ static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark, xfrm_ad
 	struct xfrm_state *x;
 	struct hlist_node *entry;
 
+	/* 查找对应的xfrm_state{} */
 	hlist_for_each_entry(x, entry, net->xfrm.state_byspi+h, byspi) {
 		if (x->props.family != family ||
 		    x->id.spi       != spi ||

@@ -47,6 +47,7 @@ struct sec_path *secpath_dup(struct sec_path *src)
 EXPORT_SYMBOL(secpath_dup);
 
 /* Fetch spi and seq from ipsec header */
+/* 解析获取spi、seq的值 */
 
 int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 {
@@ -136,11 +137,11 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		skb->sp = sp;
 	}
 
-	daddr = (xfrm_address_t *)(skb_network_header(skb) +
-				   XFRM_SPI_SKB_CB(skb)->daddroff);
+	daddr = (xfrm_address_t *)(skb_network_header(skb) + XFRM_SPI_SKB_CB(skb)->daddroff);
 	family = XFRM_SPI_SKB_CB(skb)->family;
 
 	seq = 0;
+	/* 如果spi为0 则从报文中解析获取 */
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMINHDRERROR);
 		goto drop;
